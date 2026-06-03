@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxmox Dashboard</title>
+    <!-- Tailwind CSS (CDN for lightweight self-hosted deployment) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <style>
+        body {
+            background-color: #0f172a; /* Tailwind slate-900 */
+        }
+        /* Fade transition for HTMX swaps */
+        .htmx-swapping {
+            opacity: 0;
+            transition: opacity 200ms ease-out;
+        }
+    </style>
+</head>
+<body class="text-gray-100 min-h-screen p-4 md:p-8 font-sans antialiased">
+    
+    <div class="max-w-6xl mx-auto">
+        <!-- Header -->
+        <header class="mb-8 flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">Homelab<span class="text-blue-500">Dash</span></h1>
+                <p class="mt-2 text-sm text-gray-400">Lightweight monitoring for Proxmox and Docker</p>
+            </div>
+            
+            <div class="flex items-center space-x-2">
+                <span class="relative flex h-3 w-3">
+                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                </span>
+                <span class="text-sm font-medium text-gray-300">Live</span>
+            </div>
+        </header>
+
+        <!-- Main Dashboard Container - Polls every 5s -->
+        <div 
+            hx-get="/status" 
+            hx-trigger="load, every 5s" 
+            hx-swap="innerHTML transition:true"
+            id="dashboard-content"
+        >
+            <!-- Initial Loading State -->
+            <div class="flex flex-col items-center justify-center py-20 text-gray-400 space-y-4">
+                <svg class="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="text-sm font-medium tracking-wider uppercase">Connecting to Aggregator...</p>
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>

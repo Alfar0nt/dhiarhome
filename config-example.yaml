@@ -1,0 +1,26 @@
+proxmox:
+  # The URL to your Proxmox VE API (e.g. https://192.168.1.100:8006/api2/json)
+  url: "https://192.168.1.100:8006/api2/json"
+  # The Node Name you want to monitor (e.g. pve)
+  node_name: "pve"
+  # API Token ID (e.g. root@pam!dashboard)
+  token_id: "root@pam!dashboard"
+  # API Token Secret (UUID format)
+  token_secret: "YOUR-SECRET-UUID-HERE"
+  # Set to true to use mock data for testing UI without real credentials
+  mock: true
+
+docker:
+  # Path to the local Docker socket
+  socket: "unix:///var/run/docker.sock"
+  # Containers to explicitly monitor (leave empty to monitor all)
+  monitor_containers:
+    - "nginx"
+    - "pihole"
+
+services:
+  # List of web services to monitor for 200 OK
+  - name: "Personal Website"
+    url: "https://example.com"
+  - name: "Nextcloud"
+    url: "https://nextcloud.example.com"
