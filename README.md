@@ -1,6 +1,7 @@
-# HomelabDash: Lightweight Proxmox & Docker Dashboard
+# Selfhosted Proxmox Dashboard
+just my simple learning project for homelab monitoring, fully vibecoded btw. so if you have any bugs or error, you can simply modify it or just custom your own. Thx
 
-Welcome to **HomelabDash**! 
+Welcome to **Selfhosted Proxmox Dashboard**! 
 
 ## What is this project?
 This is a simple, ultra-lightweight web dashboard designed for self-hosted home servers (like a Dell Latitude running Proxmox). It gives you a single page to monitor your server's health, see which Docker containers are running, and check if your personal websites are online.
