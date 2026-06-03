@@ -10,7 +10,7 @@ This is a simple, ultra-lightweight web dashboard designed for self-hosted home 
 Home servers often have limited resources (CPU/RAM). Many existing dashboards are heavy and require running large databases or complex setups. The purpose of this project is to provide a fast, beautiful dashboard that uses almost zero resources. 
 
 ## Screenshot
-![Homepage Screenshot](screenshot.png)
+![Homepage Screenshot](Screenshot.png)
 
 ## Tech Stacks Used
 - **Backend:** Go (Golang) - incredibly fast and compiles down to a tiny, self-contained file.
