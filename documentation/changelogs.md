@@ -15,6 +15,35 @@ See [to-do.md](to-do.md) for the full 33-step implementation plan.
 
 ---
 
+## [0.7.2] - 2026-06-17 - Todo Reactivity Fix, Multi-Disk, CPU Name, Mobile Fixes
+
+### Fixed
+- **Todo add not working** — Root cause: Alpine.js reactivity does not reliably detect `Array.push()` (in-place mutation). Changed to `Array.concat()` which creates a new array reference that Alpine.js reactivity detects. Also fixed toggle mutation using `Array.map()` instead of in-place mutation.
+- **Mobile background image scrolling** — On mobile, `position: fixed` elements shift during overscroll rubber-band. Fixed by setting `html, body { overflow: hidden; height: 100%; }` and wrapping all content in a `#scroll-container` div with `overflow-y: auto` and `100dvh` height. Background moved from `body::before`/`body::after` pseudo-elements to real `<div>` elements for better mobile browser reliability.
+
+### Added
+- **CPU model name** in CPU widget alongside core/thread count (e.g., "Intel Core i7-12700K" above "12C / 20T"). `cleanCPUName()` strips verbose suffixes like " with Radeon Graphics", " CPU @ X.XXGHz", "-Core Processor".
+- **Multi-disk support** — `NodeStatus.Disk` replaced with `NodeStatus.Disks []DiskInfo` with mountpoint, total, used per disk. Real Proxmox API fetches disk list from `/nodes/{node}/disks/list` endpoint. Mock mode returns 3 disks (`/`, `/mnt/storage`, `/mnt/backup`).
+- **Scrollable disk widget** — Disk area now has `max-h-[210px] overflow-y-auto` with thin scrollbar. Multiple disks scroll internally without expanding the card.
+- **`roundDur` template function** — Response times now display as clean "150 ms" or "1.23 s" instead of Go's default verbose "150.123456ms".
+
+### Changed
+- `templates/todo.html`: Removed duplicate `@click.prevent` and `@keydown.enter.prevent` handlers — form's `@submit.prevent` handles both naturally. In-place mutations replaced with immutable array operations for Alpine.js compatibility.
+- `templates/widgets/widgets.html`: Network interface display restructured to vertical stacking — each interface shows name/label on top, speed (↓ ↑) indented below. Prevents horizontal squeeze on mobile 2-column grid.
+- `templates/status.html`: Response time display uses `{{ roundDur .ResponseTime }}` instead of raw `{{ .ResponseTime }}`.
+- `static/index.html`: Background moved to real `<div>` elements (`#bg-image`, `#bg-overlay`), `body` padding moved to `#scroll-container`, added `overscroll-behavior: none` on `html`.
+
+### Files Modified
+- `internal/proxmox/client.go` — `DiskInfo` struct, `Disks` field, `fetchDiskList()`, `cleanCPUName()`, mock returns 3 disks
+- `templates/todo.html` — Immutable array ops + simplified event handlers
+- `templates/status.html` — CPU model name, multi-disk scrollable widget, `roundDur` function
+- `templates/widgets/widgets.html` — Network card vertical stack layout
+- `static/index.html` — `#scroll-container` scroll model, real background divs
+- `main.go` — `roundDur` template function added
+- All documentation files updated
+
+---
+
 ## [0.7.1] - 2026-06-16 - Todo Widget Bug Fix & Compact Redesign
 
 ### Fixed
@@ -508,6 +537,7 @@ personalProject-Dashboard/
 | 0.6.0 | 2026-06-16 | Backdrop-flicker elimination: custom DOM diff swap extension |
 | 0.7.0 | 2026-06-16 | Interactive to-do list (Alpine.js), CPU core/thread display |
 | 0.7.1 | 2026-06-16 | Todo add bug fix (data-preserve), compact redesign |
+| 0.7.2 | 2026-06-17 | Todo reactivity fix, CPU model name, multi-disk support, mobile bg scroll fix, network card vertical layout, response time formatting |
 | 0.8.0 | Planned | Bookmarks and custom links |
 | 0.9.0 | Planned | Service integration framework |
 | 1.0.0 | Planned | First stable release with all planned features |

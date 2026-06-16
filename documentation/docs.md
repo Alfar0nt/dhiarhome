@@ -176,6 +176,7 @@ dhiarhome/
 - Connects to Proxmox VE API endpoint
 - Authenticates using API token (PVEAPIToken header)
 - Fetches node status (CPU, memory, disk, uptime)
+- **Multi-disk support**: `Disks []DiskInfo` with mountpoint, total, used per disk. Fetches additional disks from `/nodes/{node}/disks/list` endpoint. Mock mode returns 3 disks.
 - Supports self-signed certificates (TLS skip verify)
 - Mock mode generates random realistic data
 
@@ -212,6 +213,7 @@ dhiarhome/
   - `percent(used, total)` - Calculate percentage
   - `mult(a, b)` - Multiplication
   - `gb(bytes)` - Convert bytes to gigabytes
+  - `roundDur(duration)` - Format response time as "150 ms" or "1.23 s"
 - `index.html` rendered as Go template with appearance config data
 - `status.html` rendered with current metrics and service states
 - `combineWidgets()` post-processes widget data: merges weather+datetime into combined card, reorders for layout
@@ -238,9 +240,11 @@ dhiarhome/
 #### CPU Info (`internal/proxmox`)
 - `CPUInfo` struct: `ModelName`, `Cores` (physical), `Threads` (logical)
 - `ReadLocalCPUInfo()` parses `/proc/cpuinfo` for accurate core/thread counts
+- `cleanCPUName()` strips verbose suffixes (` with Radeon Graphics`, ` CPU @ X.XXGHz`, `-Core Processor`, `(TM)`, `(R)` branding marks)
 - Handles multi-socket systems, hyperthreading, and various CPU topologies
 - Read once at startup (static hardware data, no polling needed)
 - Mock mode provides simulated info (i7-12700K, 12C/20T)
+- Displayed in CPU widget as model name above core/thread count (e.g., "Intel Core i7-12700K" above "12C / 20T")
 
 #### HTTP Handlers
 - `GET /` — Renders `index.html` as Go template (or serves static files)

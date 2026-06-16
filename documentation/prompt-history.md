@@ -792,9 +792,135 @@ The todo card was inside the HTMX swap zone (`#dashboard-content`). The merge-sw
 
 ---
 
-## Future Sessions
+## Session 17: Todo Reactivity Fix — Alpine.js Array Mutations
 
-*This section will be updated with future conversations and interactions related to the project.*
+**Date:** June 17, 2026
+
+### User Request
+```
+there is a bug, where i cannot add a new to-do list from the web, even after typing the to- do list, i cannot pressed the add button, enter button also doesnt work. it just doesnt get addedd on the to do list under it. even on mobile, it also doesnt work. fix this
+```
+
+### Root Cause
+Alpine.js 3.x uses `Object.defineProperty` for reactivity (similar to Vue 2). In-place array mutations like `Array.push()` do not reliably trigger re-render of `x-for` and `x-show` directives across all Alpine.js versions. The POST to `/api/todos` succeeded, but the UI never updated.
+
+### Fix Applied
+1. **`push` → `concat`**: Changed `self.todos.push(todo)` to `self.todos = self.todos.concat([todo])` — creates a new array reference that Alpine.js reactivity reliably detects.
+2. **`toggleTodo`**: Replaced in-place `self.todos[i].done = !self.todos[i].done` with `self.todos = self.todos.map(...)` — returns a new array with the toggled item.
+3. **Removed duplicate event handlers**: `@click.prevent` on button and `@keydown.enter.prevent` on input were redundant — form's `@submit.prevent` handles both naturally. Eliminated a race where both would fire, causing `newText` to be cleared mid-async.
+
+### Files Modified
+- `templates/todo.html` — Immutable array operations, simplified event handling
+
+---
+
+## Session 18: CPU Model Name Display
+
+**Date:** June 17, 2026
+
+### User Request
+```
+in addition to the cpu core/threat, also add the cpu type in the cpu widget, like amd ryzen ... or intel core i ... the text should be with the core/thread count
+```
+
+### Changes
+1. **`templates/status.html`**: Added CPU model name display above core/thread count in the CPU widget. Model name shown in `text-[9px]` (smaller than core/thread), right-aligned, with `max-w-[140px] truncate` for long names.
+2. **`internal/proxmox/client.go`**: Added `cleanCPUName()` function that strips verbose suffixes (` with Radeon Graphics`, ` CPU @ X.XXGHz`, `-Core Processor`, `(TM)`, `(R)` branding marks). Updated mock name from `"Mock CPU (Intel Core i7-12700K)"` to just `"Intel Core i7-12700K"`.
+3. **Condition**: Display only when all three (`ModelName`, `Cores`, `Threads`) are available.
+
+### Files Modified
+- `templates/status.html` — CPU model name in CPU card
+- `internal/proxmox/client.go` — `cleanCPUName()` function, mock name simplified
+
+---
+
+## Session 19: Multi-Disk Support with Scrollable Widget
+
+**Date:** June 17, 2026
+
+### User Request
+```
+for the disk wiget, make it scrollable for that widget only, so if im having a few disk to monitor, it doesnt waste a space belom that
+```
+
+### Changes
+1. **`internal/proxmox/client.go`**:
+   - Added `DiskInfo` struct with `Mountpoint`, `Total`, `Used` fields
+   - Changed `NodeStatus.Disk` (single struct) to `NodeStatus.RootFS` (kept for JSON unmarshaling) + `NodeStatus.Disks []DiskInfo` (populated after fetch)
+   - `GetNodeStatus()` converts `RootFS` into a `DiskInfo` entry for `/`, then calls `fetchDiskList()` to pull additional disks from Proxmox disk list API (`GET /nodes/{node}/disks/list`)
+   - Mock mode returns 3 disks: `/` (256GB), `/mnt/storage` (2TB), `/mnt/backup` (4TB)
+2. **`templates/status.html`**: Replaced single disk card with a scrollable container (`max-h-[210px] overflow-y-auto` with thin scrollbar). Each disk is a compact row: mountpoint → percentage → progress bar → used/total.
+
+### Files Modified
+- `internal/proxmox/client.go` — DiskInfo struct, Disks field, fetchDiskList(), mock multi-disk
+- `templates/status.html` — Scrollable multi-disk widget
+
+---
+
+## Session 20: Mobile Background Image Scroll Fix
+
+**Date:** June 17, 2026
+
+### User Request
+```
+fix the image scrolling up/down on mobile view, so when i scroll to to the very bottom/very top of the page, the background image followed to scroll up/down after a brief moment after scrolling
+```
+
+### Root Cause
+On mobile browsers (Chrome, Brave on Android), `position: fixed` elements shift during overscroll/rubber-band effect when reaching the page boundary. The `body::before`/`body::after` pseudo-elements with `position: fixed` moved with the viewport during overscroll.
+
+### Fix Applied
+1. **Removed `body::before`/`body::after` pseudo-elements** for background — replaced with real `<div>` elements (`#bg-image`, `#bg-overlay`) in the HTML body with `position: fixed; pointer-events: none;`.
+2. **New scroll model**: `html, body { height: 100%; overflow: hidden; }` — the viewport never scrolls. All content lives inside `#scroll-container` with `overflow-y: auto; height: 100dvh;`. Background divs are direct children of `<body>` at `position: fixed` — since body never scrolls, they are literally locked in place.
+3. Added `-webkit-overflow-scrolling: touch` for smooth iOS touch scrolling.
+
+### Files Modified
+- `static/index.html` — Complete restructuring of scroll model and background rendering
+
+---
+
+## Session 21: Network Card Vertical Layout for Mobile
+
+**Date:** June 17, 2026
+
+### User Request
+```
+on desktop, the network speed and network card is good, but on mobile view, the network card disapear completely. i want you to add in in top of the speed upload/download, so each card has a name on top of it, and the network speed underneath it
+```
+
+### Root Cause
+On mobile's 2-column grid, each network interface was a horizontal row (name + speed on same line). The horizontal layout got squeezed to the point where content overflowed or became invisible in the tight mobile card width.
+
+### Fix Applied
+Restructured each network interface entry from horizontal to vertical stacking:
+- **Top row**: Status dot + interface name + optional label (e.g., `● eth0 (Primary)`)
+- **Bottom row (indented)**: RX/TX speeds below (e.g., `↓ 1.2 Mbit/s ↑ 3.4 Mbit/s`)
+
+This gives each interface more horizontal room for the name while keeping speeds readable underneath.
+
+### Files Modified
+- `templates/widgets/widgets.html` — Network card restructured to vertical layout
+
+---
+
+## Session 22: Response Time Format Cleanup
+
+**Date:** June 17, 2026
+
+### User Request
+```
+reduce the decimal on the monitored service of the website, so that it only shows like 150.000 ms, not too many decimals after dot
+```
+
+### Changes
+1. **`main.go`**: Added `roundDur` template function to the FuncMap:
+   - Sub-second durations: `fmt.Sprintf("%.0f ms", ms)` → e.g., "150 ms"
+   - Second+ durations: `fmt.Sprintf("%.2f s", d.Seconds())` → e.g., "1.23 s"
+2. **`templates/status.html`**: Changed `{{ .ResponseTime }}` to `{{ roundDur .ResponseTime }}`.
+
+### Files Modified
+- `main.go` — `roundDur` template function
+- `templates/status.html` — Use `roundDur` for response time display
 
 ---
 
