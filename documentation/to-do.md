@@ -14,7 +14,7 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 ## Phase 1: Visual Enhancements
 
 ### Step 1.1 — Extend Config with Appearance Settings
-- [ ] Add `AppearanceConfig` struct to `internal/config/config.go`
+- [x] Add `AppearanceConfig` struct to `internal/config/config.go`
   ```go
   type AppearanceConfig struct {
       BackgroundImage   string  `yaml:"background_image"`
@@ -27,24 +27,24 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       AccentColor       string  `yaml:"accent_color"`
   }
   ```
-- [ ] Add `Appearance AppearanceConfig` field to the main `Config` struct
-- [ ] Set sensible defaults when fields are omitted (opacity 0.3, blur 5, theme "dark")
-- [ ] Add appearance section to `config-example.yaml`
-- [ ] Test: verify config loads with and without the new section (backward compat)
+- [x] Add `Appearance AppearanceConfig` field to the main `Config` struct
+- [x] Set sensible defaults when fields are omitted (opacity 0.3, blur 5, theme "dark")
+- [x] Add appearance section to `config-example.yaml`
+- [x] Test: verify config loads with and without the new section (backward compat)
 
 ### Step 1.2 — Implement Custom Background Image
-- [ ] Create `static/backgrounds/` directory with a default dark gradient image
-- [ ] Modify `static/index.html` to:
+- [x] Create `static/backgrounds/` directory with a default dark gradient image
+- [x] Modify `static/index.html` to:
   - Render background image from config via a Go template variable
   - Apply CSS `background-size: cover; background-position: center`
   - Add dark overlay div with configurable opacity
   - Add optional CSS blur filter
-- [ ] Add a `/api/background` endpoint (or pass via template) to serve the configured background path
-- [ ] Support both local file paths and remote URLs
-- [ ] Test: load dashboard with a custom local image, verify overlay and blur work
+- [x] Add a `/api/background` endpoint (or pass via template) to serve the configured background path
+- [x] Support both local file paths and remote URLs
+- [x] Test: load dashboard with a custom local image, verify overlay and blur work
 
 ### Step 1.3 — Glassmorphism Card Styling
-- [ ] Define CSS variables in `static/index.html` `<style>` block:
+- [x] Define CSS variables in `static/index.html` `<style>` block:
   ```css
   :root {
     --card-bg: rgba(30, 41, 59, 0.6);
@@ -57,38 +57,38 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
     --accent-red: #ef4444;
   }
   ```
-- [ ] Update card classes in `templates/status.html`:
+- [x] Update card classes in `templates/status.html`:
   - Replace solid `bg-gray-800` with `var(--card-bg)` + `backdrop-filter: blur()`
   - Add semi-transparent borders
   - Add subtle inner shadow
-- [ ] Add hover effect: `translateY(-2px)` + glow shadow
-- [ ] Ensure text remains readable over any background (test with light/dark images)
-- [ ] Test: verify glass effect renders in Chrome, Firefox, Safari
+- [x] Add hover effect: `translateY(-2px)` + glow shadow
+- [x] Ensure text remains readable over any background (test with light/dark images)
+- [x] Test: verify glass effect renders in Chrome, Firefox, Safari
 
 ### Step 1.4 — Typography & Spacing Improvements
-- [ ] Add Inter font via Google Fonts CDN (with `display=swap`)
-- [ ] Set base font family to `Inter, system-ui, -apple-system, sans-serif`
-- [ ] Increase card padding from `p-6` to `p-6` with improved internal spacing
-- [ ] Use `tracking-tight` for headings, `tracking-normal` for body text
-- [ ] Add consistent spacing scale (4px base unit)
-- [ ] Improve metric label typography (smaller, uppercase, letter-spacing)
-- [ ] Test: compare before/after readability
+- [x] Add Inter font via Google Fonts CDN (with `display=swap`)
+- [x] Set base font family to `Inter, system-ui, -apple-system, sans-serif`
+- [x] Increase card padding from `p-6` to `p-6` with improved internal spacing
+- [x] Use `tracking-tight` for headings, `tracking-normal` for body text
+- [x] Add consistent spacing scale (4px base unit)
+- [x] Improve metric label typography (smaller, uppercase, letter-spacing)
+- [x] Test: compare before/after readability
 
 ### Step 1.5 — Smooth Animations & Transitions
-- [ ] Add CSS transitions to all interactive elements (cards, buttons, status badges)
-- [ ] Add HTMX swap transition: fade-out old content, fade-in new content
-- [ ] Add subtle pulse animation to "Live" indicator
-- [ ] Add loading skeleton/shimmer for initial data fetch
-- [ ] Respect `prefers-reduced-motion` media query (disable animations)
-- [ ] Test: verify animations feel smooth at 60fps
+- [x] Add CSS transitions to all interactive elements (cards, buttons, status badges)
+- [x] Add HTMX swap transition: fade-out old content, fade-in new content
+- [x] Add subtle pulse animation to "Live" indicator
+- [x] Add loading skeleton/shimmer for initial data fetch
+- [x] Respect `prefers-reduced-motion` media query (disable animations)
+- [x] Test: verify animations feel smooth at 60fps
 
 ### Step 1.6 — Accessibility Audit (Visual Layer)
-- [ ] Check all text meets WCAG 2.1 AA contrast ratio (4.5:1 minimum)
-- [ ] Add visible focus rings for keyboard navigation
-- [ ] Ensure status indicators have text labels (not just color)
-- [ ] Add `aria-label` attributes to icon-only elements
-- [ ] Test with screen reader (basic navigation check)
-- [ ] Test: run Lighthouse accessibility audit, target score >90
+- [x] Check all text meets WCAG 2.1 AA contrast ratio (4.5:1 minimum)
+- [x] Add visible focus rings for keyboard navigation
+- [x] Ensure status indicators have text labels (not just color)
+- [x] Add `aria-label` attributes to icon-only elements
+- [x] Test with screen reader (basic navigation check)
+- [x] Test: run Lighthouse accessibility audit, target score >90
 
 ---
 
@@ -486,10 +486,10 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 
 | Phase | Steps | Done | Remaining |
 |-------|-------|------|-----------|
-| 1. Visual Enhancements | 6 | 0 | 6 |
+| 1. Visual Enhancements | 6 | 6 | 0 |
 | 2. Utility Widgets | 6 | 0 | 6 |
 | 3. Network Monitoring | 5 | 0 | 5 |
 | 4. Bookmarks & Links | 4 | 0 | 4 |
 | 5. Service Widgets | 6 | 0 | 6 |
 | 6. Polish & Docs | 6 | 0 | 6 |
-| **Total** | **33** | **0** | **33** |
+| **Total** | **33** | **6** | **27** |

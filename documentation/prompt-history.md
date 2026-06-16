@@ -228,6 +228,166 @@ okay good, but now before impelenting those changes in to-do, i wnt you to first
 
 ---
 
+## Session 5: Phase 1 Implementation — Visual Enhancements
+
+**Date:** June 16, 2026
+
+### User Request
+
+```
+read the documentation/to-do.md, and start creating and implement the to-do as written in there, starts from the phase 1 first, and then after youve finished the phase 1, update the to-do.md file, prompt-history, and the changelogs
+```
+
+### Assistant Response Summary
+
+**Actions Taken:**
+
+1. **Step 1.1 — Extended Config with Appearance Settings**
+   - Added `AppearanceConfig` struct to `internal/config/config.go` with 8 fields: background_image, background_url, background_opacity, background_blur, theme, card_opacity, card_blur, accent_color
+   - Added `setDefaults()` method to apply sensible defaults (opacity 0.3, blur 5, theme "dark", accent "#3b82f6")
+   - Backward compatible: old configs without `appearance` section still load correctly
+
+2. **Step 1.2 — Custom Background Image**
+   - Created `static/backgrounds/` directory
+   - Converted `static/index.html` from a static file to a Go template
+   - Added `indexHandler` to `main.go` that injects appearance config as template variables
+   - Background image rendered via CSS `body::before` pseudo-element with `background-size: cover`
+   - Dark overlay via `body::after` with configurable opacity
+   - CSS blur filter applied to background layer
+   - Added `/api/background` JSON endpoint
+   - Supports both local file paths and remote URLs
+
+3. **Step 1.3 — Glassmorphism Card Styling**
+   - Defined CSS custom properties (variables) for card styling
+   - Created `.glass-card` class: `backdrop-filter: blur()`, semi-transparent background, border
+   - Created `.glass-inner` class for nested panels
+   - Hover effect: `translateY(-2px)` + blue glow shadow
+   - Replaced all `bg-gray-800` cards in `templates/status.html`
+
+4. **Step 1.4 — Typography & Spacing**
+   - Added Inter font via Google Fonts CDN with `display=swap`
+   - Set body font family to `Inter, system-ui, -apple-system, sans-serif`
+   - Created `.metric-label` class (uppercase, letter-spacing, muted)
+   - Created `.metric-value` class (tight letter-spacing, bold)
+   - Added `tabular-nums` to numeric values to prevent layout jitter
+
+5. **Step 1.5 — Animations & Transitions**
+   - Added 200ms ease transitions to all glass cards on hover
+   - Improved HTMX swap transitions: 180ms fade-out + 250ms fade-in
+   - Added `live-pulse` keyframe animation for Live indicator dot
+   - Replaced loading spinner with skeleton shimmer animation
+   - Added `progress-bar` class with cubic-bezier transition
+   - Added `prefers-reduced-motion` media query to disable all animations
+
+6. **Step 1.6 — Accessibility**
+   - Added `role="meter"` and `aria-valuenow/min/max` to CPU, RAM, Disk widgets
+   - Added `aria-hidden="true"` to all decorative SVG icons and progress bars
+   - Added `aria-live="polite"` to dashboard content region
+   - Added visible `focus-visible` rings for keyboard navigation
+   - Added `tabindex="0"` and `aria-label` to service and container items
+   - Status badges retain text labels (not just color indicators)
+   - Added `role="status"` to live indicator and loading skeleton
+
+7. **Documentation Updated**
+   - `to-do.md`: All Phase 1 steps marked `[x]` complete, progress tracker updated (6/33 done)
+   - `changelogs.md`: Added `[0.3.0]` entry with detailed added/changed/files sections
+   - `config-example.yaml`: Added full `appearance` section with inline comments
+   - `config.yaml`: Added `appearance` section
+   - Version history summary updated: 0.3.0 marked as released
+
+### Technical Details
+
+**New CSS Architecture:**
+- CSS custom properties defined in `:root` for easy theming
+- Glassmorphism implemented via `backdrop-filter: blur()` + `rgba()` backgrounds
+- Background image uses `body::before` (image) + `body::after` (overlay) pseudo-elements
+- `transform: scale(1.05)` on background to prevent blur edge artifacts
+
+**New Go Handlers:**
+- `indexHandler()`: Renders `static/index.html` as Go template with `AppearanceConfig` data
+- `backgroundHandler()`: Returns JSON with background src, opacity, blur values
+- Static file server now scoped to non-index paths only via `http.HandleFunc("/", ...)`
+
+### Files Created
+- `static/backgrounds/.gitkeep` — Placeholder for backgrounds directory
+
+### Files Modified
+- `internal/config/config.go` — `AppearanceConfig` struct, `setDefaults()` method
+- `main.go` — `indexHandler`, `backgroundHandler`, `indexTmpl` variable, `fmt` import
+- `static/index.html` — Full rewrite as Go template with all visual enhancements
+- `templates/status.html` — Glassmorphism cards, ARIA attributes, typography classes
+- `config-example.yaml` — Added appearance section
+- `config.yaml` — Added appearance section
+- `documentation/to-do.md` — Phase 1 marked complete
+- `documentation/changelogs.md` — Added 0.3.0 entry
+- `documentation/prompt-history.md` — This session
+
+---
+
+## Session 6: Background Image Fix & Placeholder URL
+
+**Date:** June 16, 2026
+
+### User Request
+
+```
+i tried to adding image with the path of image.png, why wouldnt it shows?
+...
+still not showing, can you add a place holder image url using url or cdn in the internet? im ttrying to add something that is simmilar to the homepage, a blue anime style with rain and sceneries
+```
+
+### Assistant Response Summary
+
+**Root Cause Identified:**
+CSS `url()` cannot reference filesystem paths — setting `background_image: "image.png"` placed the raw filename into the CSS, but the browser has no way to access local disk files. It needs an HTTP endpoint.
+
+**Fix Applied:**
+1. **New `/background` HTTP handler** in `main.go`:
+   - Reads the local image file from disk using `os.ReadFile`
+   - Detects MIME type from file extension via `mime.TypeByExtension`
+   - Serves the image with proper `Content-Type` header
+   - Sets `Cache-Control: public, max-age=3600` (1-hour browser cache)
+
+2. **Updated `indexHandler`** logic:
+   - If `background_url` is set → uses the remote URL directly in CSS
+   - If `background_image` is set → CSS points to `/background` (the handler serves the file)
+   - If neither is set → no background rendered
+
+3. **Updated `static/index.html`** to use `{{ .BackgroundSrc }}` template variable instead of hardcoded path
+
+4. **Added new imports** to `main.go`: `mime`, `os`, `path/filepath`
+
+5. **Placeholder background** set in `config.yaml`:
+   - URL: `https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1920&q=80` (Tokyo neon rain)
+   - Opacity raised to `0.4`, blur lowered to `3` for better visibility
+   - Provided 6 alternative Unsplash URLs (rainy night, window rain, Japanese alley, mountain mist, foggy forest)
+
+### Files Modified
+- `main.go` — Added `backgroundServeHandler()`, `/background` route, updated `indexHandler`/`backgroundHandler` logic, added `mime`/`os`/`path/filepath` imports
+- `static/index.html` — Fixed CSS to use `{{ .BackgroundSrc }}` template variable
+- `config.yaml` — Set Unsplash background URL, adjusted opacity/blur
+
+---
+
+## Session 7: Pre-Phase 2 Documentation Update
+
+**Date:** June 16, 2026
+
+### User Request
+
+```
+okay very good. now update the prompt-history and changelogs also docs if needed, before were going to the step 2 of this project process in the to-do
+```
+
+### Assistant Response Summary
+
+**Actions Taken:**
+- Updated `documentation/changelogs.md`: Added `/background` endpoint details, `### Fixed` section, and updated files list to the 0.3.0 entry
+- Updated `documentation/prompt-history.md`: Added Session 6 (background fix) and Session 7 (this session), fixed section ordering
+- Updated `documentation/docs.md`: Added Appearance configuration reference, updated project structure to include `static/backgrounds/`, added new HTTP handler descriptions, updated architecture section
+
+---
+
 ## Future Sessions
 
 *This section will be updated with future conversations and interactions related to the project.*

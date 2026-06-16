@@ -7,8 +7,6 @@ All notable changes to this project are documented in this file.
 ## [Unreleased] - Pre-Feature Roadmap
 
 ### Planned
-- Customizable background images (config-based)
-- Glassmorphism theme with transparent cards
 - Weather widget (Open-Meteo API)
 - Date/time widget with timezone support
 - System info widget
@@ -18,6 +16,73 @@ All notable changes to this project are documented in this file.
 - Generic HTTP API widget for custom services
 
 See [to-do.md](to-do.md) for the full 33-step implementation plan.
+
+---
+
+## [0.3.0] - 2026-06-16 - Visual Enhancements (Phase 1 Complete)
+
+### Added
+- **Appearance Config System** (`internal/config/config.go`)
+  - New `AppearanceConfig` struct with fields: `background_image`, `background_url`, `background_opacity`, `background_blur`, `theme`, `card_opacity`, `card_blur`, `accent_color`
+  - Sensible defaults applied automatically when fields are omitted
+  - Full backward compatibility — old configs without `appearance` section still work
+
+- **Custom Background Image** (`static/index.html`, `static/backgrounds/`)
+  - Support for local file paths and remote URLs
+  - Dark overlay with configurable opacity
+  - CSS blur filter with configurable intensity
+  - `/api/background` JSON endpoint
+  - `/background` endpoint that reads local image files from disk and serves them via HTTP with proper content-type and cache headers
+  - `static/index.html` is now a Go template for dynamic rendering
+
+- **Glassmorphism UI** (`static/index.html`, `templates/status.html`)
+  - `glass-card` and `glass-inner` CSS classes replacing solid `bg-gray-800`
+  - `backdrop-filter: blur()` on all cards
+  - Semi-transparent borders with `rgba(255,255,255,0.1)`
+  - Hover effect: `translateY(-2px)` + glow shadow
+
+- **Typography Improvements**
+  - Inter font loaded via Google Fonts CDN with `display=swap`
+  - Font stack: `Inter, system-ui, -apple-system, sans-serif`
+  - `.metric-label` class: uppercase, letter-spacing, muted color
+  - `.metric-value` class: tight letter-spacing, bold weight
+  - `tabular-nums` for numeric values (no jitter)
+
+- **Animations & Transitions**
+  - Smooth card hover transitions (200ms ease)
+  - HTMX swap transitions: fade-out (180ms) + fade-in (250ms)
+  - `live-pulse` keyframe animation for Live indicator
+  - Loading skeleton shimmer replacing spinner
+  - Progress bar transitions with cubic-bezier easing
+  - `prefers-reduced-motion` respected (all animations disabled)
+
+- **Accessibility (WCAG 2.1 AA)**
+  - `aria-label` on all meter widgets (CPU, RAM, Disk)
+  - `aria-hidden="true"` on decorative icons and progress bars
+  - `aria-live="polite"` on dashboard content region
+  - Visible `focus-visible` rings on all interactive elements
+  - `tabindex="0"` on service and container items
+  - Status badges have text labels (not color-only)
+  - `role="status"` on live indicator and loading skeleton
+
+### Changed
+- `main.go`: `index.html` now served via Go template engine (`indexHandler`), not plain static file
+- `main.go`: New `/api/background` endpoint returning JSON config
+- `main.go`: New `/background` endpoint that reads local image files from disk and serves them with correct MIME type and 1-hour cache
+- `main.go`: Static file server scoped to non-index paths only
+- `config.yaml` / `config-example.yaml`: Added `appearance` section
+
+### Fixed
+- Background image not displaying when using local file paths (e.g. `image.png`) — CSS `url()` cannot reference filesystem paths directly; now routed through `/background` HTTP handler
+
+### Files Modified
+- `internal/config/config.go` — `AppearanceConfig` struct + `setDefaults()`
+- `main.go` — `indexHandler`, `backgroundHandler`, `backgroundServeHandler`, `indexTmpl` variable
+- `static/index.html` — Full rewrite as Go template with CSS variables, glassmorphism, accessibility
+- `templates/status.html` — Replaced solid cards with `glass-card`/`glass-inner`, added ARIA
+- `config-example.yaml` — Added appearance section with comments
+- `config.yaml` — Added appearance section with Unsplash background URL
+- `static/backgrounds/` — New directory for custom background images
 
 ---
 
@@ -165,7 +230,7 @@ personalProject-Dashboard/
 |---------|------|-------------|
 | 0.1.0 | Pre-2026-06-16 | Original "Selfhosted Proxmox Dashboard" with core features |
 | 0.2.0 | 2026-06-16 | Rebrand to "dhiarhome" + documentation system |
-| 0.3.0 | Planned | Visual enhancements (background, glassmorphism, animations) |
+| 0.3.0 | 2026-06-16 | Visual enhancements: glassmorphism, background, animations, accessibility |
 | 0.4.0 | Planned | Utility widgets (weather, datetime, system info) |
 | 0.5.0 | Planned | Network monitoring |
 | 0.6.0 | Planned | Bookmarks and custom links |

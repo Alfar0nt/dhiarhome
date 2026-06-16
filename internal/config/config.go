@@ -7,9 +7,21 @@ import (
 )
 
 type Config struct {
-	Proxmox  ProxmoxConfig  `yaml:"proxmox"`
-	Docker   DockerConfig   `yaml:"docker"`
-	Services []ServiceConfig `yaml:"services"`
+	Proxmox    ProxmoxConfig    `yaml:"proxmox"`
+	Docker     DockerConfig     `yaml:"docker"`
+	Services   []ServiceConfig  `yaml:"services"`
+	Appearance AppearanceConfig `yaml:"appearance"`
+}
+
+type AppearanceConfig struct {
+	BackgroundImage   string  `yaml:"background_image"`
+	BackgroundURL     string  `yaml:"background_url"`
+	BackgroundOpacity float64 `yaml:"background_opacity"`
+	BackgroundBlur    int     `yaml:"background_blur"`
+	Theme             string  `yaml:"theme"`
+	CardOpacity       float64 `yaml:"card_opacity"`
+	CardBlur          int     `yaml:"card_blur"`
+	AccentColor       string  `yaml:"accent_color"`
 }
 
 type ProxmoxConfig struct {
@@ -39,5 +51,27 @@ func LoadConfig(path string) (*Config, error) {
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
 		return nil, err
 	}
+	cfg.setDefaults()
 	return &cfg, nil
+}
+
+func (c *Config) setDefaults() {
+	if c.Appearance.Theme == "" {
+		c.Appearance.Theme = "dark"
+	}
+	if c.Appearance.BackgroundOpacity == 0 {
+		c.Appearance.BackgroundOpacity = 0.3
+	}
+	if c.Appearance.BackgroundBlur == 0 {
+		c.Appearance.BackgroundBlur = 5
+	}
+	if c.Appearance.CardOpacity == 0 {
+		c.Appearance.CardOpacity = 0.6
+	}
+	if c.Appearance.CardBlur == 0 {
+		c.Appearance.CardBlur = 12
+	}
+	if c.Appearance.AccentColor == "" {
+		c.Appearance.AccentColor = "#3b82f6"
+	}
 }

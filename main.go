@@ -1,9 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"html/template"
 	"log"
+	"mime"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	"dhiarhome/internal/cache"
@@ -25,6 +29,7 @@ var (
 	pxClient     *proxmox.Client
 	dkClient     *docker.Client
 	tmpl         *template.Template
+	indexTmpl    *template.Template
 )
 
 func main() {
@@ -61,11 +66,24 @@ func main() {
 		},
 	}).ParseFiles("templates/status.html"))
 
+	// Parse index.html as a template for dynamic appearance injection
+	indexTmpl = template.Must(template.New("index.html").ParseFiles("static/index.html"))
+
 	// Background poller for services
 	go pollServices()
 
-	http.Handle("/", http.FileServer(http.Dir("static")))
+	// Serve static files but handle index.html as a template
+	fs := http.FileServer(http.Dir("static"))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
+			indexHandler(w, r)
+			return
+		}
+		fs.ServeHTTP(w, r)
+	})
 	http.HandleFunc("/status", statusHandler)
+	http.HandleFunc("/api/background", backgroundHandler)
+	http.HandleFunc("/background", backgroundServeHandler)
 
 	log.Println("Server listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
@@ -94,6 +112,79 @@ func doPoll() {
 		}
 		historyCache.Add(state)
 	}
+}
+
+func indexHandler(w http.ResponseWriter, r *http.Request) {
+	// Determine background source
+	bgSrc := ""
+	if appConfig.Appearance.BackgroundURL != "" {
+		// Remote URL: use directly in CSS
+		bgSrc = appConfig.Appearance.BackgroundURL
+	} else if appConfig.Appearance.BackgroundImage != "" {
+		// Local file: serve via /background endpoint
+		bgSrc = "/background"
+	}
+
+	data := struct {
+		BackgroundSrc     string
+		BackgroundOpacity float64
+		BackgroundBlur    int
+		CardOpacity       float64
+		CardBlur          int
+		AccentColor       string
+		Theme             string
+	}{
+		BackgroundSrc:     bgSrc,
+		BackgroundOpacity: appConfig.Appearance.BackgroundOpacity,
+		BackgroundBlur:    appConfig.Appearance.BackgroundBlur,
+		CardOpacity:       appConfig.Appearance.CardOpacity,
+		CardBlur:          appConfig.Appearance.CardBlur,
+		AccentColor:       appConfig.Appearance.AccentColor,
+		Theme:             appConfig.Appearance.Theme,
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := indexTmpl.Execute(w, data); err != nil {
+		log.Printf("Index template error: %v", err)
+		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+	}
+}
+
+func backgroundHandler(w http.ResponseWriter, r *http.Request) {
+	bgSrc := ""
+	if appConfig.Appearance.BackgroundURL != "" {
+		bgSrc = appConfig.Appearance.BackgroundURL
+	} else if appConfig.Appearance.BackgroundImage != "" {
+		bgSrc = "/background"
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"src":"%s","opacity":%.2f,"blur":%d}`, bgSrc, appConfig.Appearance.BackgroundOpacity, appConfig.Appearance.BackgroundBlur)
+}
+
+func backgroundServeHandler(w http.ResponseWriter, r *http.Request) {
+	imgPath := appConfig.Appearance.BackgroundImage
+	if imgPath == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, err := os.ReadFile(imgPath)
+	if err != nil {
+		log.Printf("Background image error: %v", err)
+		http.NotFound(w, r)
+		return
+	}
+
+	// Detect content type from extension
+	ext := filepath.Ext(imgPath)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "image/png"
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Write(data)
 }
 
 func statusHandler(w http.ResponseWriter, r *http.Request) {

@@ -24,3 +24,22 @@ services:
     url: "https://example.com"
   - name: "Nextcloud"
     url: "https://nextcloud.example.com"
+
+# ─── Appearance ───────────────────────────────────────────────────────
+appearance:
+  # Local file path for background image (relative to working directory)
+  background_image: ""
+  # Remote URL for background image (overrides background_image if set)
+  background_url: ""
+  # Dark overlay opacity on the background (0.0 - 1.0)
+  background_opacity: 0.3
+  # Background blur intensity in pixels (0 - 20)
+  background_blur: 5
+  # Theme: "dark" (light theme planned for future)
+  theme: "dark"
+  # Card background opacity (0.0 - 1.0)
+  card_opacity: 0.6
+  # Card backdrop blur intensity in pixels (0 - 30)
+  card_blur: 12
+  # Accent color (hex)
+  accent_color: "#3b82f6"

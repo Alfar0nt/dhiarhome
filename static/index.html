@@ -4,54 +4,202 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dhiarhome</title>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS (CDN for lightweight self-hosted deployment) -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+
     <style>
-        body {
-            background-color: #0f172a; /* Tailwind slate-900 */
+        /* ─── CSS Variables ─────────────────────────────────────────── */
+        :root {
+            --card-bg: rgba(30, 41, 59, {{ printf "%.2f" .CardOpacity }});
+            --card-border: rgba(255, 255, 255, 0.1);
+            --card-blur: {{ .CardBlur }}px;
+            --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+            --card-hover-shadow: 0 8px 32px rgba(59, 130, 246, 0.15);
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --accent-color: {{ .AccentColor }};
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-red: #ef4444;
+            --accent-purple: #8b5cf6;
+            --bg-overlay-opacity: {{ printf "%.2f" .BackgroundOpacity }};
+            --bg-blur: {{ .BackgroundBlur }}px;
         }
-        /* Fade transition for HTMX swaps */
+
+        /* ─── Base ──────────────────────────────────────────────────── */
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: #0f172a;
+            position: relative;
+            overflow-x: hidden;
+        }
+
+        /* ─── Background Image Layer ───────────────────────────────── */
+        {{ if .BackgroundSrc }}
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -2;
+            background-image: url('{{ .BackgroundSrc }}');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            filter: blur(var(--bg-blur));
+            transform: scale(1.05); /* avoid blur edge artifacts */
+        }
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            background: rgba(15, 23, 42, var(--bg-overlay-opacity));
+        }
+        {{ end }}
+
+        /* ─── Glassmorphism Card ────────────────────────────────────── */
+        .glass-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(var(--card-blur));
+            -webkit-backdrop-filter: blur(var(--card-blur));
+            border: 1px solid var(--card-border);
+            border-radius: 1rem;
+            box-shadow: var(--card-shadow);
+            transition: transform 200ms ease, box-shadow 200ms ease;
+        }
+        .glass-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--card-hover-shadow);
+        }
+
+        /* ─── Glass Inner Panel ─────────────────────────────────────── */
+        .glass-inner {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 0.75rem;
+            transition: border-color 200ms ease;
+        }
+        .glass-inner:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        /* ─── Typography ────────────────────────────────────────────── */
+        .metric-label {
+            font-size: 0.6875rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+        .metric-value {
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            color: var(--text-primary);
+        }
+        h1, h2 { letter-spacing: -0.025em; }
+
+        /* ─── HTMX Transitions ──────────────────────────────────────── */
         .htmx-swapping {
             opacity: 0;
-            transition: opacity 200ms ease-out;
+            transition: opacity 180ms ease-out;
+        }
+        .htmx-settling {
+            opacity: 1;
+            transition: opacity 250ms ease-in;
+        }
+
+        /* ─── Live Indicator Pulse ──────────────────────────────────── */
+        @keyframes live-pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .live-dot {
+            animation: live-pulse 2s ease-in-out infinite;
+        }
+
+        /* ─── Loading Skeleton Shimmer ──────────────────────────────── */
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        .skeleton {
+            background: linear-gradient(90deg,
+                rgba(30,41,59,0.4) 25%,
+                rgba(51,65,85,0.6) 50%,
+                rgba(30,41,59,0.4) 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.8s ease-in-out infinite;
+            border-radius: 0.75rem;
+        }
+
+        /* ─── Progress Bar ──────────────────────────────────────────── */
+        .progress-bar {
+            transition: width 600ms cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* ─── Accessibility: Focus Rings ────────────────────────────── */
+        a:focus-visible, button:focus-visible, [tabindex]:focus-visible {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+            border-radius: 4px;
+        }
+
+        /* ─── Reduced Motion ────────────────────────────────────────── */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.01ms !important;
+            }
+            .glass-card:hover { transform: none; }
         }
     </style>
 </head>
-<body class="text-gray-100 min-h-screen p-4 md:p-8 font-sans antialiased">
-    
+<body class="text-gray-100 min-h-screen p-4 md:p-8 antialiased">
+
     <div class="max-w-6xl mx-auto">
+
         <!-- Header -->
         <header class="mb-8 flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">dhiar<span class="text-blue-500">home</span></h1>
-                <p class="mt-2 text-sm text-gray-400">Lightweight homelab monitoring dashboard</p>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
+                    dhiar<span style="color: var(--accent-color)">home</span>
+                </h1>
+                <p class="mt-2 text-sm text-gray-400 tracking-normal">Lightweight homelab monitoring dashboard</p>
             </div>
-            
-            <div class="flex items-center space-x-2">
-                <span class="relative flex h-3 w-3">
+
+            <div class="flex items-center space-x-2" role="status" aria-label="Dashboard is live, data refreshes every 5 seconds">
+                <span class="relative flex h-3 w-3" aria-hidden="true">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    <span class="live-dot relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
                 </span>
                 <span class="text-sm font-medium text-gray-300">Live</span>
             </div>
         </header>
 
         <!-- Main Dashboard Container - Polls every 5s -->
-        <div 
-            hx-get="/status" 
-            hx-trigger="load, every 5s" 
+        <div
+            hx-get="/status"
+            hx-trigger="load, every 5s"
             hx-swap="innerHTML transition:true"
             id="dashboard-content"
+            aria-live="polite"
+            aria-label="Dashboard metrics and service status"
         >
-            <!-- Initial Loading State -->
-            <div class="flex flex-col items-center justify-center py-20 text-gray-400 space-y-4">
-                <svg class="w-10 h-10 animate-spin text-blue-500" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="text-sm font-medium tracking-wider uppercase">Connecting to Aggregator...</p>
+            <!-- Initial Loading Skeleton -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" role="status" aria-label="Loading dashboard data">
+                <div class="skeleton h-52 col-span-1 md:col-span-3"></div>
+                <div class="skeleton h-64 col-span-1 md:col-span-2"></div>
+                <div class="skeleton h-64 col-span-1"></div>
+                <span class="sr-only">Connecting to aggregator…</span>
             </div>
         </div>
 

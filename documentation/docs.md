@@ -82,7 +82,7 @@ dhiarhome/
 │   ├── cache/
 │   │   └── history.go          # In-memory service state cache (linked list)
 │   ├── config/
-│   │   └── config.go           # YAML configuration loader
+│   │   └── config.go           # YAML configuration loader + AppearanceConfig
 │   ├── docker/
 │   │   └── client.go           # Docker API client
 │   ├── monitor/
@@ -91,7 +91,8 @@ dhiarhome/
 │       └── client.go           # Proxmox API client
 │
 ├── static/
-│   └── index.html              # Main dashboard page (HTMX-powered)
+│   ├── index.html              # Main dashboard page (Go template + HTMX)
+│   └── backgrounds/            # Custom background images (local files)
 ├── templates/
 │   └── status.html             # Server-side rendered status template
 │
@@ -114,11 +115,13 @@ dhiarhome/
 
 3. **HTTP Requests**
    - User accesses `http://localhost:8080/`
-   - Static `index.html` served with HTMX auto-refresh (every 5s)
-   - HTMX polls `/status` endpoint
+   - `index.html` rendered as Go template with appearance config injected
+   - HTMX auto-refresh polls `/status` endpoint every 5s
    - Server fetches fresh data from Proxmox API and Docker socket
    - Renders `status.html` template with current metrics
    - Returns HTML fragment to browser
+   - `/background` serves local background image file (if configured)
+   - `/api/background` returns JSON with background config
 
 4. **Real-time Updates**
    - HTMX swaps HTML content with fade transition
@@ -128,7 +131,8 @@ dhiarhome/
 
 #### Configuration Package (`internal/config`)
 - Parses YAML configuration file
-- Defines structs for Proxmox, Docker, and Services config
+- Defines structs for Proxmox, Docker, Services, and Appearance config
+- `setDefaults()` applies sensible defaults for omitted appearance fields
 - Validates required fields
 
 #### Proxmox Client (`internal/proxmox`)
@@ -161,8 +165,17 @@ dhiarhome/
   - `percent(used, total)` - Calculate percentage
   - `mult(a, b)` - Multiplication
   - `gb(bytes)` - Convert bytes to gigabytes
+- `index.html` rendered as Go template with appearance config data
+- `status.html` rendered with current metrics and service states
 - Conditional rendering for online/offline states
 - Progress bars for CPU/memory/disk usage
+- Glassmorphism card styling via CSS variables
+
+#### HTTP Handlers
+- `GET /` — Renders `index.html` as Go template (or serves static files)
+- `GET /status` — Returns HTMX HTML fragment with current metrics
+- `GET /background` — Serves local background image file with MIME type + 1h cache
+- `GET /api/background` — Returns JSON with background source, opacity, blur
 
 ---
 
@@ -195,6 +208,21 @@ services:
   - name: "Nextcloud"
     url: "https://nextcloud.example.com"
 ```
+
+### Appearance Section
+```yaml
+appearance:
+  background_image: ""                    # Local file path (relative to working dir)
+  background_url: "https://..."           # Remote URL (overrides background_image)
+  background_opacity: 0.4                 # Dark overlay opacity (0.0 - 1.0, default: 0.3)
+  background_blur: 3                      # Background blur in px (0 - 20, default: 5)
+  theme: "dark"                           # Theme (default: "dark")
+  card_opacity: 0.6                       # Card background opacity (0.0 - 1.0, default: 0.6)
+  card_blur: 12                           # Card backdrop blur in px (0 - 30, default: 12)
+  accent_color: "#3b82f6"                 # Accent color hex (default: "#3b82f6")
+```
+
+> **Note:** If both `background_image` and `background_url` are empty, no background image is rendered (solid dark background). If `background_url` is set, it takes priority over `background_image`.
 
 ---
 
@@ -245,15 +273,20 @@ services:
 
 ## Future Enhancement Ideas
 
+See [to-do.md](to-do.md) for the full phased implementation plan (33 steps). Key upcoming features:
+
+- Weather widget (Open-Meteo API, free, no key)
+- Date/time widget with timezone support
+- System info widget (hostname, OS, uptime)
+- Network interface monitoring (speed, RX/TX)
+- Custom bookmarks and web links with icon support
+- Service integration framework (Plex, Radarr, Sonarr, Portainer)
+- Generic HTTP API widget for custom services
 - Multi-node Proxmox support
 - Historical metrics with SQLite/InfluxDB
 - Alert notifications (email, Discord, Telegram)
 - HTTPS support with Let's Encrypt
 - User authentication
-- Custom dashboard themes
-- TCP/port monitoring
-- Docker container logs viewer
-- Proxmox VM management controls
 
 ---
 
