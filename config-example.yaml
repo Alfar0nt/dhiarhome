@@ -43,3 +43,30 @@ appearance:
   card_blur: 12
   # Accent color (hex)
   accent_color: "#3b82f6"
+
+# ─── Widgets ──────────────────────────────────────────────────────────
+widgets:
+  # Weather widget (Open-Meteo API - free, no key required)
+  weather:
+    enabled: false
+    latitude: 40.7128       # Your latitude
+    longitude: -74.0060     # Your longitude
+    units: "celsius"        # "celsius" or "fahrenheit"
+    cache_minutes: 15       # How long to cache API responses
+    mock: false             # Use mock data for testing
+
+  # Date/time widget with live client-side clock
+  datetime:
+    enabled: false
+    timezone: "America/New_York"  # IANA timezone (e.g., "Asia/Jakarta", "Europe/London")
+    format_24h: false             # true for 24-hour, false for 12-hour AM/PM
+
+  # System info widget (hostname, OS, uptime, Go runtime stats)
+  system_info:
+    enabled: false
+
+  # Custom text widget (displays arbitrary text)
+  custom_text:
+    enabled: false
+    title: "Note"
+    content: "Welcome to dhiarhome!"

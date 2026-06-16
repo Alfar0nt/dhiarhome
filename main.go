@@ -15,21 +15,26 @@ import (
 	"dhiarhome/internal/docker"
 	"dhiarhome/internal/monitor"
 	"dhiarhome/internal/proxmox"
+	"dhiarhome/internal/widgets"
 )
 
 type DashboardData struct {
-	Proxmox    proxmox.NodeStatus
-	Containers []docker.Container
-	Services   []cache.ServiceState
+	Proxmox      proxmox.NodeStatus
+	Containers   []docker.Container
+	Services     []cache.ServiceState
+	Widgets      []widgets.WidgetData
+	DateTime24h  bool
+	DateTimezone string
 }
 
 var (
-	appConfig    *config.Config
-	historyCache *cache.HistoryCache
-	pxClient     *proxmox.Client
-	dkClient     *docker.Client
-	tmpl         *template.Template
-	indexTmpl    *template.Template
+	appConfig      *config.Config
+	historyCache   *cache.HistoryCache
+	pxClient       *proxmox.Client
+	dkClient       *docker.Client
+	tmpl           *template.Template
+	indexTmpl      *template.Template
+	widgetRegistry *widgets.Registry
 )
 
 func main() {
@@ -51,6 +56,21 @@ func main() {
 
 	dkClient = docker.NewClient(appConfig.Docker.Socket)
 
+	// Initialize widget registry and register enabled widgets
+	widgetRegistry = widgets.NewRegistry()
+	if appConfig.Widgets.Weather.Enabled {
+		widgetRegistry.Register(widgets.NewWeatherWidget(appConfig.Widgets.Weather))
+	}
+	if appConfig.Widgets.DateTime.Enabled {
+		widgetRegistry.Register(widgets.NewDateTimeWidget(appConfig.Widgets.DateTime))
+	}
+	if appConfig.Widgets.SystemInfo.Enabled {
+		widgetRegistry.Register(widgets.NewSystemInfoWidget(appConfig.Widgets.SystemInfo))
+	}
+	if appConfig.Widgets.CustomText.Enabled {
+		widgetRegistry.Register(widgets.NewCustomTextWidget(appConfig.Widgets.CustomText))
+	}
+
 	tmpl = template.Must(template.New("status.html").Funcs(template.FuncMap{
 		"percent": func(used, total int64) float64 {
 			if total == 0 {
@@ -64,7 +84,7 @@ func main() {
 		"gb": func(bytes int64) float64 {
 			return float64(bytes) / (1024 * 1024 * 1024)
 		},
-	}).ParseFiles("templates/status.html"))
+	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html"))
 
 	// Parse index.html as a template for dynamic appearance injection
 	indexTmpl = template.Must(template.New("index.html").ParseFiles("static/index.html"))
@@ -231,9 +251,12 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	data := DashboardData{
-		Proxmox:    pxStatus,
-		Containers: containers,
-		Services:   latestServices,
+		Proxmox:      pxStatus,
+		Containers:   containers,
+		Services:     latestServices,
+		Widgets:      widgetRegistry.FetchAll(),
+		DateTime24h:  appConfig.Widgets.DateTime.Format24h,
+		DateTimezone: appConfig.Widgets.DateTime.Timezone,
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {

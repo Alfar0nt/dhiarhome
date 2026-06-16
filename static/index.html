@@ -74,9 +74,11 @@
             border-radius: 1rem;
             box-shadow: var(--card-shadow);
             transition: transform 200ms ease, box-shadow 200ms ease;
+            transform: translateZ(0); /* force GPU layer to prevent backdrop-filter flicker */
+            will-change: transform;
         }
         .glass-card:hover {
-            transform: translateY(-2px);
+            transform: translateY(-2px) translateZ(0);
             box-shadow: var(--card-hover-shadow);
         }
 

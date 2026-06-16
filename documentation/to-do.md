@@ -95,8 +95,8 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 ## Phase 2: Utility & Information Widgets
 
 ### Step 2.1 — Create Widgets Package Structure
-- [ ] Create `internal/widgets/` directory
-- [ ] Create `internal/widgets/widget.go` with base interfaces:
+- [x] Create `internal/widgets/` directory
+- [x] Create `internal/widgets/widget.go` with base interfaces:
   ```go
   type WidgetData struct {
       Type    string
@@ -105,8 +105,8 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       Icon    string
   }
   ```
-- [ ] Create `internal/widgets/registry.go` to manage enabled widgets
-- [ ] Add `WidgetsConfig` struct to `internal/config/config.go`:
+- [x] Create `internal/widgets/registry.go` to manage enabled widgets
+- [x] Add `WidgetsConfig` struct to `internal/config/config.go`:
   ```go
   type WidgetsConfig struct {
       Weather    WeatherWidgetConfig    `yaml:"weather"`
@@ -115,51 +115,51 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       CustomText CustomTextWidgetConfig `yaml:"custom_text"`
   }
   ```
-- [ ] Add widgets section to `config-example.yaml`
-- [ ] Test: verify config loads correctly
+- [x] Add widgets section to `config-example.yaml`
+- [x] Test: verify config loads correctly
 
 ### Step 2.2 — Implement Weather Widget (Open-Meteo)
-- [ ] Create `internal/widgets/weather.go`
-- [ ] Implement Open-Meteo API client:
+- [x] Create `internal/widgets/weather.go`
+- [x] Implement Open-Meteo API client:
   - Endpoint: `https://api.open-meteo.com/v1/forecast?latitude=X&longitude=Y&current=temperature_2m,weather_code`
   - No API key required
   - Parse temperature, weather code, wind speed
-- [ ] Map weather codes to icons and descriptions (WMO code table)
-- [ ] Implement caching: store last response + timestamp, refresh every N minutes
-- [ ] Add mock weather data for testing (`mock: true`)
-- [ ] Create `templates/widgets/weather.html` template:
+- [x] Map weather codes to icons and descriptions (WMO code table)
+- [x] Implement caching: store last response + timestamp, refresh every N minutes
+- [x] Add mock weather data for testing (`mock: true`)
+- [x] Create `templates/widgets/widgets.html` template:
   - Show temperature, weather icon, condition label
   - Match Homepage screenshot style (e.g., "Current, 13.1°F Clear")
-- [ ] Test: fetch real data from Open-Meteo, verify caching works
+- [x] Test: fetch real data from Open-Meteo, verify caching works
 
 ### Step 2.3 — Implement Date/Time Widget
-- [ ] Create `internal/widgets/datetime.go`
-- [ ] Use Go `time` package with configurable timezone (`time.LoadLocation`)
-- [ ] Support 12h and 24h format via config
-- [ ] Format: time, day of week, full date
-- [ ] Create `templates/widgets/datetime.html` template
-- [ ] For live updates: use client-side JavaScript (lightweight `<script>` tag) instead of server polling
+- [x] Create `internal/widgets/datetime.go`
+- [x] Use Go `time` package with configurable timezone (`time.LoadLocation`)
+- [x] Support 12h and 24h format via config
+- [x] Format: time, day of week, full date
+- [x] Create `templates/widgets/widgets.html` template
+- [x] For live updates: use client-side JavaScript (lightweight `<script>` tag) instead of server polling
   - Update every second using `setInterval`
-- [ ] Test: verify timezone handling, format switching
+- [x] Test: verify timezone handling, format switching
 
 ### Step 2.4 — Implement System Info Widget
-- [ ] Create `internal/widgets/sysinfo.go`
-- [ ] Read hostname: `os.Hostname()`
-- [ ] Read OS info: parse `/etc/os-release` (Linux)
-- [ ] Read system uptime: parse `/proc/uptime`
-- [ ] Read Go runtime info: `runtime.NumGoroutine()`, `runtime.MemStats`
-- [ ] Create `templates/widgets/sysinfo.html` template
-- [ ] Test: verify data displays correctly on Linux
+- [x] Create `internal/widgets/sysinfo.go`
+- [x] Read hostname: `os.Hostname()`
+- [x] Read OS info: parse `/etc/os-release` (Linux)
+- [x] Read system uptime: parse `/proc/uptime`
+- [x] Read Go runtime info: `runtime.NumGoroutine()`, `runtime.MemStats`
+- [x] Create `templates/widgets/widgets.html` template
+- [x] Test: verify data displays correctly on Linux
 
 ### Step 2.5 — Implement Custom Text Widget
-- [ ] Create `internal/widgets/custom_text.go`
-- [ ] Read content string from config
-- [ ] Support basic HTML rendering (sanitized)
-- [ ] Create `templates/widgets/custom_text.html` template
-- [ ] Test: verify HTML rendering and sanitization
+- [x] Create `internal/widgets/custom_text.go`
+- [x] Read content string from config
+- [x] Support basic HTML rendering (sanitized)
+- [x] Create `templates/widgets/widgets.html` template
+- [x] Test: verify HTML rendering and sanitization
 
 ### Step 2.6 — Integrate Widgets into Dashboard Layout
-- [ ] Add widget data to `DashboardData` struct in `main.go`:
+- [x] Add widget data to `DashboardData` struct in `main.go`:
   ```go
   type DashboardData struct {
       Proxmox    proxmox.NodeStatus
@@ -168,11 +168,11 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       Widgets    []widgets.WidgetData  // NEW
   }
   ```
-- [ ] Create a `/widgets` HTMX endpoint (or include in `/status`)
-- [ ] Modify `static/index.html` header to include widget container row
-- [ ] Create responsive grid for widgets (1-4 columns based on screen size)
-- [ ] Render widgets above the main dashboard content
-- [ ] Test: full page render with all widgets enabled, then with some disabled
+- [x] Create a `/widgets` HTMX endpoint (or include in `/status`)
+- [x] Modify `static/index.html` header to include widget container row
+- [x] Create responsive grid for widgets (1-4 columns based on screen size)
+- [x] Render widgets above the main dashboard content
+- [x] Test: full page render with all widgets enabled, then with some disabled
 
 ---
 
@@ -487,9 +487,9 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | Phase | Steps | Done | Remaining |
 |-------|-------|------|-----------|
 | 1. Visual Enhancements | 6 | 6 | 0 |
-| 2. Utility Widgets | 6 | 0 | 6 |
+| 2. Utility Widgets | 6 | 6 | 0 |
 | 3. Network Monitoring | 5 | 0 | 5 |
 | 4. Bookmarks & Links | 4 | 0 | 4 |
 | 5. Service Widgets | 6 | 0 | 6 |
 | 6. Polish & Docs | 6 | 0 | 6 |
-| **Total** | **33** | **6** | **27** |
+| **Total** | **33** | **12** | **21** |

@@ -40,6 +40,14 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - No real credentials required for development
 - Random varying metrics for realistic testing
 
+### 5. Utility Widgets
+- **Weather** — Open-Meteo API integration (free, no API key), temperature, condition, wind speed, configurable caching, mock mode
+- **Date/Time** — Configurable timezone, 12h/24h format, client-side live clock (updates every second)
+- **System Info** — Hostname, OS name, system uptime, Go runtime stats (goroutines, memory)
+- **Custom Text** — Configurable title and content, HTML-sanitized for security
+- Responsive grid layout (1-4 columns based on screen size)
+- Glassmorphism card styling matching the dashboard theme
+
 ---
 
 ## Technology Stack
@@ -87,14 +95,23 @@ dhiarhome/
 │   │   └── client.go           # Docker API client
 │   ├── monitor/
 │   │   └── http.go             # HTTP service health checker
-│   └── proxmox/
-│       └── client.go           # Proxmox API client
+│   ├── proxmox/
+│   │   └── client.go           # Proxmox API client
+│   └── widgets/
+│       ├── widget.go           # Widget interface + WidgetData struct
+│       ├── registry.go         # Widget registry manager
+│       ├── weather.go          # Open-Meteo weather widget
+│       ├── datetime.go         # Date/time widget with client-side clock
+│       ├── sysinfo.go          # System information widget
+│       └── custom_text.go      # Custom text widget
 │
 ├── static/
 │   ├── index.html              # Main dashboard page (Go template + HTMX)
 │   └── backgrounds/            # Custom background images (local files)
 ├── templates/
-│   └── status.html             # Server-side rendered status template
+│   ├── status.html             # Server-side rendered status template
+│   └── widgets/
+│       └── widgets.html        # Widget rendering template (all types)
 │
 └── Screenshot.png              # Project screenshot
 ```
@@ -223,6 +240,33 @@ appearance:
 ```
 
 > **Note:** If both `background_image` and `background_url` are empty, no background image is rendered (solid dark background). If `background_url` is set, it takes priority over `background_image`.
+
+### Widgets Section
+```yaml
+widgets:
+  weather:
+    enabled: false                        # Enable weather widget
+    latitude: 40.7128                     # Your latitude
+    longitude: -74.0060                   # Your longitude
+    units: "celsius"                      # "celsius" or "fahrenheit" (default: celsius)
+    cache_minutes: 15                     # API cache duration (default: 15)
+    mock: false                           # Use mock data (default: false)
+
+  datetime:
+    enabled: false                        # Enable date/time widget
+    timezone: "America/New_York"          # IANA timezone (default: Local)
+    format_24h: false                     # 24-hour format (default: false)
+
+  system_info:
+    enabled: false                        # Enable system info widget
+
+  custom_text:
+    enabled: false                        # Enable custom text widget
+    title: "Note"                         # Widget title (default: "Note")
+    content: "Welcome!"                   # Text content (HTML is escaped)
+```
+
+> **Note:** Each widget has an `enabled` flag. Disabled widgets are not registered and consume zero resources.
 
 ---
 

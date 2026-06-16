@@ -388,6 +388,117 @@ okay very good. now update the prompt-history and changelogs also docs if needed
 
 ---
 
+## Session 8: Phase 2 Implementation — Utility & Information Widgets
+
+**Date:** June 16, 2026
+
+### User Request
+
+```
+okay good. now we're good to go to the step/phase 2 of this project, which is to add the utility and information widget. you can process as is written on the to-do.md, and dont forget after that, update the changelogs, prompt-history.md, and the overall docs folder if theress any
+```
+
+### Assistant Response Summary
+
+**Actions Taken:**
+
+1. **Step 2.1 — Widgets Package Structure**
+   - Created `internal/widgets/` directory with 6 Go files
+   - `widget.go`: Defined `WidgetData` struct (Type, Label, Icon, Values map) and `Widget` interface (Name, Type, Fetch)
+   - `registry.go`: Widget registry with `Register()`, `FetchAll()`, `Count()` methods
+   - Added `WidgetsConfig` and 4 per-widget config structs to `internal/config/config.go`
+   - Added defaults: 15-min cache, celsius units, Local timezone, "Note" title
+
+2. **Step 2.2 — Weather Widget (Open-Meteo)**
+   - Created `internal/widgets/weather.go` with `WeatherWidget` struct
+   - Open-Meteo API client: fetches temperature, weather code, wind speed
+   - WMO code mapping: 0-99 codes mapped to emoji icons + human-readable descriptions
+   - Thread-safe caching with `sync.RWMutex` and configurable TTL (default 15 min)
+   - Mock mode generates random weather data from preset conditions
+   - 5-second HTTP timeout on API calls
+   - Supports Celsius and Fahrenheit
+
+3. **Step 2.3 — DateTime Widget**
+   - Created `internal/widgets/datetime.go` with `DateTimeWidget` struct
+   - Uses `time.LoadLocation` for IANA timezone support
+   - 12h/24h format toggle via config
+   - Client-side JavaScript clock in template (updates every second via `setInterval`)
+   - Uses `Intl.DateTimeFormat` API for timezone-aware rendering in the browser
+
+4. **Step 2.4 — System Info Widget**
+   - Created `internal/widgets/sysinfo.go` with `SystemInfoWidget` struct
+   - Hostname via `os.Hostname()`
+   - OS name parsed from `/etc/os-release` PRETTY_NAME field
+   - System uptime from `/proc/uptime` (formatted as Xd Xh Xm)
+   - Go runtime stats: `runtime.NumGoroutine()`, `runtime.MemStats.Alloc`
+
+5. **Step 2.5 — Custom Text Widget**
+   - Created `internal/widgets/custom_text.go` with `CustomTextWidget` struct
+   - Reads title and content from config
+   - Content sanitized via `html.EscapeString` to prevent XSS
+
+6. **Step 2.6 — Dashboard Integration**
+   - Updated `main.go`: Added `widgetRegistry` global, conditional widget registration based on `enabled` flags
+   - `DashboardData` struct extended with `Widgets`, `DateTime24h`, `DateTimezone` fields
+   - Template parsing includes `templates/widgets/widgets.html`
+   - `statusHandler` calls `widgetRegistry.FetchAll()` and passes data to template
+   - Created `templates/widgets/widgets.html`: responsive 1/2/4-column grid, type-conditional rendering, glassmorphism cards, ARIA labels, client-side clock script
+   - `templates/status.html` includes widgets template at the top via `{{ template "widgets.html" . }}`
+
+7. **Documentation Updated**
+   - `to-do.md`: All Phase 2 steps marked `[x]`, progress tracker updated (12/33 done)
+   - `changelogs.md`: Added `[0.4.0]` entry with full details
+   - `prompt-history.md`: Added Session 8
+   - `config-example.yaml`: Added full `widgets` section with comments
+   - `config.yaml`: Added `widgets` section with all 4 widgets enabled (mock weather)
+
+### Files Created
+- `internal/widgets/widget.go` — Widget interface + WidgetData struct
+- `internal/widgets/registry.go` — Widget registry manager
+- `internal/widgets/weather.go` — Open-Meteo weather widget (183 lines)
+- `internal/widgets/datetime.go` — Date/time widget with timezone support
+- `internal/widgets/sysinfo.go` — System info widget (hostname, OS, uptime, Go stats)
+- `internal/widgets/custom_text.go` — Custom text widget with HTML sanitization
+- `templates/widgets/widgets.html` — Combined widget template (102 lines)
+
+### Files Modified
+- `internal/config/config.go` — WidgetsConfig + 4 widget config structs + defaults
+- `main.go` — Widget registry init, DashboardData fields, template parsing
+- `templates/status.html` — Widget template inclusion
+- `config-example.yaml` — Widgets section
+- `config.yaml` — Widgets section (all enabled)
+- `documentation/to-do.md` — Phase 2 marked complete
+- `documentation/changelogs.md` — Added 0.4.0 entry
+- `documentation/prompt-history.md` — This session
+
+---
+
+## Session 9: Glassmorphism Hover Flicker Fix
+
+**Date:** June 16, 2026
+
+### User Request
+
+```
+okay good, but i think there is a little bug, when i quickly hover my mouse cursor to the widget/monitoring tab, it has a little hover animation right, but sometimes, there is a bug where the transparent background are disspearing and then reappering quickliy
+```
+
+### Root Cause
+When `transform: translateY(-2px)` transitions on an element with `backdrop-filter: blur()`, the browser re-composites the element mid-animation. During the 200ms transition, the backdrop-filter effect temporarily drops out, causing the transparent glass background to flicker.
+
+### Fix Applied
+Added two CSS properties to `.glass-card`:
+1. `transform: translateZ(0)` — Forces the element onto its own GPU compositing layer, so the backdrop-filter doesn't need to be re-rasterized during transform changes
+2. `will-change: transform` — Hints to the browser to pre-allocate GPU resources for transform animations
+3. Hover state updated to `transform: translateY(-2px) translateZ(0)` to maintain the GPU layer throughout the animation
+
+### Files Modified
+- `static/index.html` — `.glass-card` base and hover `transform` values updated
+- `documentation/changelogs.md` — Added flicker fix to 0.3.0 `### Fixed` section
+- `documentation/prompt-history.md` — This session
+
+---
+
 ## Future Sessions
 
 *This section will be updated with future conversations and interactions related to the project.*

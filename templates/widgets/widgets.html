@@ -1,0 +1,101 @@
+{{ if .Widgets }}
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+    {{ range .Widgets }}
+
+    {{ if eq .Type "weather" }}
+    <!-- Weather Widget -->
+    <div class="glass-card p-5" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
+        <div class="flex items-center justify-between mb-3">
+            <p class="metric-label">{{ .Label }}</p>
+            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+        </div>
+        <p class="text-2xl font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
+        <p class="text-sm text-gray-400 mt-1">{{ index .Values "condition" }}</p>
+        <p class="text-xs text-gray-500 mt-2 tabular-nums">💨 {{ index .Values "wind_speed" }}</p>
+    </div>
+    {{ end }}
+
+    {{ if eq .Type "datetime" }}
+    <!-- DateTime Widget -->
+    <div class="glass-card p-5" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
+        <div class="flex items-center justify-between mb-3">
+            <p class="metric-label">{{ .Label }}</p>
+            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+        </div>
+        <p class="text-2xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</p>
+        <p class="text-sm text-gray-400 mt-1" id="widget-date">{{ index .Values "date" }}</p>
+        <p class="text-xs text-gray-500 mt-2">{{ index .Values "timezone" }}</p>
+    </div>
+    {{ end }}
+
+    {{ if eq .Type "system_info" }}
+    <!-- System Info Widget -->
+    <div class="glass-card p-5" tabindex="0" aria-label="System info: {{ index .Values "hostname" }}, uptime {{ index .Values "uptime" }}">
+        <div class="flex items-center justify-between mb-3">
+            <p class="metric-label">{{ .Label }}</p>
+            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+        </div>
+        <p class="text-sm font-semibold text-white truncate">{{ index .Values "hostname" }}</p>
+        <p class="text-xs text-gray-400 mt-1 truncate">{{ index .Values "os" }}</p>
+        <div class="flex items-center justify-between mt-3">
+            <div>
+                <p class="metric-label">Uptime</p>
+                <p class="text-sm font-semibold text-white tabular-nums">{{ index .Values "uptime" }}</p>
+            </div>
+            <div class="text-right">
+                <p class="metric-label">Go Mem</p>
+                <p class="text-sm font-semibold text-white tabular-nums">{{ index .Values "go_mem_mb" }}</p>
+            </div>
+        </div>
+    </div>
+    {{ end }}
+
+    {{ if eq .Type "custom_text" }}
+    <!-- Custom Text Widget -->
+    <div class="glass-card p-5" tabindex="0" aria-label="{{ index .Values "title" }}">
+        <div class="flex items-center justify-between mb-3">
+            <p class="metric-label">{{ index .Values "title" }}</p>
+            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+        </div>
+        <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{{ index .Values "content" }}</p>
+    </div>
+    {{ end }}
+
+    {{ end }}
+</div>
+{{ end }}
+
+<!-- Client-side clock update for datetime widget -->
+<script>
+(function() {
+    var timeEl = document.getElementById('widget-time');
+    var dateEl = document.getElementById('widget-date');
+    if (!timeEl) return;
+
+    var format24h = {{ if .DateTime24h }}true{{ else }}false{{ end }};
+    var tz = '{{ .DateTimezone }}';
+
+    function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+    function updateClock() {
+        var now = new Date();
+        var opts = { timeZone: tz };
+        try {
+            var h = parseInt(new Intl.DateTimeFormat('en-US', Object.assign({hour:'numeric', hourCycle: format24h ? 'h23' : 'h12'}, opts)).format(now));
+            var m = pad(parseInt(new Intl.DateTimeFormat('en-US', Object.assign({minute:'numeric'}, opts)).format(now)));
+            var s = pad(parseInt(new Intl.DateTimeFormat('en-US', Object.assign({second:'numeric'}, opts)).format(now)));
+            if (format24h) {
+                timeEl.textContent = pad(h) + ':' + m + ':' + s;
+            } else {
+                var ampm = h >= 12 ? 'PM' : 'AM';
+                h = h % 12 || 12;
+                timeEl.textContent = h + ':' + m + ':' + s + ' ' + ampm;
+            }
+            dateEl.textContent = new Intl.DateTimeFormat('en-US', Object.assign({weekday:'long', month:'long', day:'numeric', year:'numeric'}, opts)).format(now);
+        } catch(e) {
+            // Fallback: just use local time
+        }
+    }
+    setInterval(updateClock, 1000);
+})();
+</script>

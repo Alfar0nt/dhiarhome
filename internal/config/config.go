@@ -11,6 +11,7 @@ type Config struct {
 	Docker     DockerConfig     `yaml:"docker"`
 	Services   []ServiceConfig  `yaml:"services"`
 	Appearance AppearanceConfig `yaml:"appearance"`
+	Widgets    WidgetsConfig    `yaml:"widgets"`
 }
 
 type AppearanceConfig struct {
@@ -40,6 +41,38 @@ type DockerConfig struct {
 type ServiceConfig struct {
 	Name string `yaml:"name"`
 	URL  string `yaml:"url"`
+}
+
+type WidgetsConfig struct {
+	Weather    WeatherWidgetConfig    `yaml:"weather"`
+	DateTime   DateTimeWidgetConfig   `yaml:"datetime"`
+	SystemInfo SystemInfoWidgetConfig `yaml:"system_info"`
+	CustomText CustomTextWidgetConfig `yaml:"custom_text"`
+}
+
+type WeatherWidgetConfig struct {
+	Enabled      bool    `yaml:"enabled"`
+	Latitude     float64 `yaml:"latitude"`
+	Longitude    float64 `yaml:"longitude"`
+	Units        string  `yaml:"units"` // "celsius" or "fahrenheit"
+	CacheMinutes int     `yaml:"cache_minutes"`
+	Mock         bool    `yaml:"mock"`
+}
+
+type DateTimeWidgetConfig struct {
+	Enabled   bool   `yaml:"enabled"`
+	Timezone  string `yaml:"timezone"` // e.g., "America/New_York"
+	Format24h bool   `yaml:"format_24h"`
+}
+
+type SystemInfoWidgetConfig struct {
+	Enabled bool `yaml:"enabled"`
+}
+
+type CustomTextWidgetConfig struct {
+	Enabled bool   `yaml:"enabled"`
+	Title   string `yaml:"title"`
+	Content string `yaml:"content"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -73,5 +106,18 @@ func (c *Config) setDefaults() {
 	}
 	if c.Appearance.AccentColor == "" {
 		c.Appearance.AccentColor = "#3b82f6"
+	}
+	// Widget defaults
+	if c.Widgets.Weather.CacheMinutes == 0 {
+		c.Widgets.Weather.CacheMinutes = 15
+	}
+	if c.Widgets.Weather.Units == "" {
+		c.Widgets.Weather.Units = "celsius"
+	}
+	if c.Widgets.DateTime.Timezone == "" {
+		c.Widgets.DateTime.Timezone = "Local"
+	}
+	if c.Widgets.CustomText.Title == "" {
+		c.Widgets.CustomText.Title = "Note"
 	}
 }
