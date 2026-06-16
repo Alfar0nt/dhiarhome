@@ -1,6 +1,6 @@
-# Proxmox Dashboard - Deployment Guide
+# dhiarhome - Deployment Guide
 
-This guide covers all deployment methods for the Proxmox Dashboard, from Docker containers to bare metal installations.
+This guide covers all deployment methods for dhiarhome, from Docker containers to bare metal installations.
 
 ---
 
@@ -41,8 +41,8 @@ This guide covers all deployment methods for the Proxmox Dashboard, from Docker 
 
 #### Step 1: Clone the Repository
 ```bash
-git clone https://github.com/Alfar0nt/SelfHosted-Proxmox-Dashboard.git
-cd SelfHosted-Proxmox-Dashboard
+git clone https://github.com/Alfar0nt/dhiarhome.git
+cd dhiarhome
 ```
 
 #### Step 2: Create Configuration File
@@ -59,7 +59,7 @@ See the [Configuration](#configuration) section for details.
 
 #### Step 3: Build the Docker Image
 ```bash
-docker build -t homelab-dash .
+docker build -t dhiarhome .
 ```
 
 This creates a multi-stage build:
@@ -71,17 +71,17 @@ Final image size: ~15-20 MB
 #### Step 4: Run the Container
 ```bash
 docker run -d \
-  --name homelab-dashboard \
+  --name dhiarhome \
   -p 8080:8080 \
   -v $(pwd)/config.yaml:/app/config.yaml \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --restart unless-stopped \
-  homelab-dash
+  dhiarhome
 ```
 
 **Flags Explained:**
 - `-d` - Run in detached mode (background)
-- `--name homelab-dashboard` - Container name
+- `--name dhiarhome` - Container name
 - `-p 8080:8080` - Map host port 8080 to container port 8080
 - `-v $(pwd)/config.yaml:/app/config.yaml` - Mount config file
 - `-v /var/run/docker.sock:/var/run/docker.sock:ro` - Mount Docker socket (read-only)
@@ -109,7 +109,7 @@ version: '3.8'
 services:
   dashboard:
     build: .
-    container_name: homelab-dashboard
+    container_name: dhiarhome
     ports:
       - "8080:8080"
     volumes:
@@ -140,17 +140,17 @@ docker-compose down
 If a pre-built image is published to Docker Hub or GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/alfar0nt/homelab-dash:latest
+docker pull ghcr.io/alfar0nt/dhiarhome:latest
 ```
 
 ```bash
 docker run -d \
-  --name homelab-dashboard \
+  --name dhiarhome \
   -p 8080:8080 \
   -v $(pwd)/config.yaml:/app/config.yaml \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --restart unless-stopped \
-  ghcr.io/alfar0nt/homelab-dash:latest
+  ghcr.io/alfar0nt/dhiarhome:latest
 ```
 
 ---
@@ -161,7 +161,7 @@ For production deployments, add security flags:
 
 ```bash
 docker run -d \
-  --name homelab-dashboard \
+  --name dhiarhome \
   -p 8080:8080 \
   -v $(pwd)/config.yaml:/app/config.yaml:ro \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
@@ -171,7 +171,7 @@ docker run -d \
   --cap-drop ALL \
   --security-opt no-new-privileges \
   --restart unless-stopped \
-  homelab-dash
+  dhiarhome
 ```
 
 **Security Flags:**
@@ -207,8 +207,8 @@ go version
 
 #### Step 2: Clone the Repository
 ```bash
-git clone https://github.com/Alfar0nt/SelfHosted-Proxmox-Dashboard.git
-cd SelfHosted-Proxmox-Dashboard
+git clone https://github.com/Alfar0nt/dhiarhome.git
+cd dhiarhome
 ```
 
 #### Step 3: Create Configuration
@@ -219,12 +219,12 @@ nano config.yaml
 
 #### Step 4: Build the Binary
 ```bash
-go build -o dashboard main.go
+go build -o dhiarhome main.go
 ```
 
 For optimized production build:
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dashboard main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dhiarhome main.go
 ```
 
 **Build Flags:**
@@ -235,22 +235,22 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dashboard mai
 
 #### Step 5: Run the Application
 ```bash
-./dashboard
+./dhiarhome
 ```
 
-The dashboard will start on port 8080.
+dhiarhome will start on port 8080.
 
 #### Step 6: Run as Background Service
 
 **Option A: Using nohup**
 ```bash
-nohup ./dashboard > dashboard.log 2>&1 &
+nohup ./dhiarhome > dhiarhome.log 2>&1 &
 ```
 
 **Option B: Using screen/tmux**
 ```bash
-screen -S dashboard
-./dashboard
+screen -S dhiarhome
+./dhiarhome
 # Press Ctrl+A, then D to detach
 ```
 
@@ -258,19 +258,19 @@ screen -S dashboard
 
 Create a systemd service file:
 ```bash
-sudo nano /etc/systemd/system/homelab-dashboard.service
+sudo nano /etc/systemd/system/dhiarhome.service
 ```
 
 ```ini
 [Unit]
-Description=Homelab Proxmox Dashboard
+Description=dhiarhome - Homelab Dashboard
 After=network.target docker.service
 
 [Service]
 Type=simple
 User=your-username
-WorkingDirectory=/path/to/SelfHosted-Proxmox-Dashboard
-ExecStart=/path/to/SelfHosted-Proxmox-Dashboard/dashboard
+WorkingDirectory=/path/to/dhiarhome
+ExecStart=/path/to/dhiarhome/dhiarhome
 Restart=on-failure
 RestartSec=5
 
@@ -281,18 +281,18 @@ WantedBy=multi-user.target
 Enable and start the service:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable homelab-dashboard
-sudo systemctl start homelab-dashboard
+sudo systemctl enable dhiarhome
+sudo systemctl start dhiarhome
 ```
 
 Check status:
 ```bash
-sudo systemctl status homelab-dashboard
+sudo systemctl status dhiarhome
 ```
 
 View logs:
 ```bash
-sudo journalctl -u homelab-dashboard -f
+sudo journalctl -u dhiarhome -f
 ```
 
 ---
@@ -301,22 +301,22 @@ sudo journalctl -u homelab-dashboard -f
 
 **For ARM64 (Raspberry Pi, ARM servers):**
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dashboard-arm64 main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags="-w -s" -o dhiarhome-arm64 main.go
 ```
 
 **For ARM (32-bit):**
 ```bash
-CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-w -s" -o dashboard-arm main.go
+CGO_ENABLED=0 GOOS=linux GOARCH=arm GOARM=7 go build -ldflags="-w -s" -o dhiarhome-arm main.go
 ```
 
 **For Windows:**
 ```bash
-CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-w -s" -o dashboard.exe main.go
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags="-w -s" -o dhiarhome.exe main.go
 ```
 
 **For macOS:**
 ```bash
-CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o dashboard-mac main.go
+CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -ldflags="-w -s" -o dhiarhome-mac main.go
 ```
 
 ---
@@ -387,7 +387,7 @@ Start the application and check the logs:
 
 Or view Docker logs:
 ```bash
-docker logs homelab-dashboard
+docker logs dhiarhome
 ```
 
 ---
@@ -561,13 +561,13 @@ dashboard.example.com {
 
 **Docker:**
 ```bash
-docker logs homelab-dashboard
+docker logs dhiarhome
 docker logs -f homelab-dashboard  # Follow mode
 ```
 
 **Systemd:**
 ```bash
-sudo journalctl -u homelab-dashboard
+sudo journalctl -u dhiarhome
 sudo journalctl -u homelab-dashboard -f  # Follow mode
 ```
 
@@ -580,7 +580,7 @@ tail -f dashboard.log
 
 **Docker:**
 ```bash
-cd SelfHosted-Proxmox-Dashboard
+cd dhiarhome
 git pull
 docker-compose down
 docker-compose build
@@ -589,10 +589,10 @@ docker-compose up -d
 
 **Bare Metal:**
 ```bash
-cd SelfHosted-Proxmox-Dashboard
+cd dhiarhome
 git pull
-go build -o dashboard main.go
-sudo systemctl restart homelab-dashboard
+go build -o dhiarhome main.go
+sudo systemctl restart dhiarhome
 ```
 
 ### Backup Configuration
@@ -639,13 +639,13 @@ For bugs, questions, or feature requests, please open an issue on GitHub.
 
 ```bash
 # Build Docker image
-docker build -t homelab-dash .
+docker build -t dhiarhome .
 
 # Run container
-docker run -d -p 8080:8080 -v $(pwd)/config.yaml:/app/config.yaml -v /var/run/docker.sock:/var/run/docker.sock:ro homelab-dash
+docker run -d -p 8080:8080 -v $(pwd)/config.yaml:/app/config.yaml -v /var/run/docker.sock:/var/run/docker.sock:ro dhiarhome
 
 # Build binary
-go build -o dashboard main.go
+go build -o dhiarhome main.go
 
 # Run binary
 ./dashboard
@@ -654,7 +654,7 @@ go build -o dashboard main.go
 sudo systemctl start homelab-dashboard
 
 # View Docker logs
-docker logs -f homelab-dashboard
+docker logs -f dhiarhome
 
 # Test Proxmox API
 curl -k -H "Authorization: PVEAPIToken=TOKEN_ID=SECRET" https://PROXMOX_IP:8006/api2/json/nodes/NODE_NAME/status

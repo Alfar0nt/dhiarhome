@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"proxmox-dashboard/internal/cache"
-	"proxmox-dashboard/internal/config"
-	"proxmox-dashboard/internal/docker"
-	"proxmox-dashboard/internal/monitor"
-	"proxmox-dashboard/internal/proxmox"
+	"dhiarhome/internal/cache"
+	"dhiarhome/internal/config"
+	"dhiarhome/internal/docker"
+	"dhiarhome/internal/monitor"
+	"dhiarhome/internal/proxmox"
 )
 
 type DashboardData struct {

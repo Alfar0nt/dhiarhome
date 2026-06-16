@@ -1,7 +1,7 @@
-# Proxmox Dashboard - Feature Implementation To-Do
+# dhiarhome - Feature Implementation To-Do
 
 ## Overview
-Step-by-step implementation plan to transform the Proxmox Dashboard into a comprehensive homelab monitoring solution inspired by `gethomepage/homepage`. Each step is a discrete, trackable task.
+Step-by-step implementation plan to transform dhiarhome into a comprehensive homelab monitoring solution inspired by `gethomepage/homepage`. Each step is a discrete, trackable task.
 
 > **Status Legend:**
 > - `[ ]` Not started

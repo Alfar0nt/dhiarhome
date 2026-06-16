@@ -17,7 +17,7 @@ RUN go mod download
 COPY . .
 
 # Build the application statically compiled
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/dashboard main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /app/dhiarhome main.go
 
 # Stage 2: Build a small image
 FROM alpine:latest
@@ -28,7 +28,7 @@ WORKDIR /app
 RUN apk --no-cache add ca-certificates
 
 # Copy the Pre-built binary file from the previous stage
-COPY --from=builder /app/dashboard /app/dashboard
+COPY --from=builder /app/dhiarhome /app/dhiarhome
 
 # Copy static assets and templates
 COPY --from=builder /app/static /app/static
@@ -41,4 +41,4 @@ COPY --from=builder /app/config.yaml /app/config.yaml
 EXPOSE 8080
 
 # Command to run the executable
-CMD ["/app/dashboard"]
+CMD ["/app/dhiarhome"]

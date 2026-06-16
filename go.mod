@@ -1,4 +1,4 @@
-module proxmox-dashboard
+module dhiarhome
 
 go 1.26.3
 

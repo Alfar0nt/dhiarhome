@@ -1,54 +1,68 @@
-# Selfhosted Proxmox Dashboard
+# dhiarhome
 
-A simple, ultra-lightweight web dashboard for monitoring your homelab server running Proxmox VE. Track server health, Docker containers, and web service uptime—all from one beautiful dark-mode interface.
+A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, and web services. Built with Go, HTMX, and Tailwind CSS.
 
 ![Dashboard Screenshot](Screenshot.png)
 
 ---
 
-## What is this?
+## What is dhiarhome?
 
-This is my personal learning project for homelab monitoring. It's a lightweight dashboard designed for resource-constrained home servers (like a Dell Latitude running Proxmox). Instead of heavy dashboards that require databases or complex setups, this gives you a fast, beautiful monitoring page that uses almost zero resources.
+**dhiarhome** is an ultra-lightweight web dashboard designed for monitoring homelab servers. It provides real-time visibility into:
 
-**Key Features:**
-- Real-time Proxmox server metrics (CPU, RAM, disk usage)
-- Docker container status monitoring
-- Web service uptime checks with response times
+- **Proxmox VE** server metrics (CPU, RAM, disk usage)
+- **Docker containers** status and state
+- **Web services** uptime with response times
 - Auto-refreshing dashboard (no manual reload needed)
 - Mock mode for testing without real credentials
 - Single binary deployment (~10MB)
+
+This is my personal learning project for homelab monitoring—simple, fast, and easy to customize.
+
+---
+
+## Features
+
+- Real-time Proxmox server monitoring (CPU, memory, disk)
+- Docker container status tracking
+- Web service health checks with response times
+- Auto-refreshing UI using HTMX (5-second polling)
+- Configuration-driven (no code changes needed)
+- Mock mode for UI testing
+- Dark mode design with Tailwind CSS
+- Lightweight: ~10-20MB RAM, <1% CPU
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Go (Golang) - Statically compiled, ultra-fast, tiny binary
-- **Frontend:** HTML + Tailwind CSS - Beautiful dark-mode design
-- **Interactivity:** HTMX - Auto-updates without JavaScript complexity
-- **Deployment:** Docker - Multi-stage build for minimal image size
+- **Backend:** Go 1.26.3 (statically compiled, single binary)
+- **Frontend:** HTML5 + Tailwind CSS + HTMX 1.9.10
+- **Configuration:** YAML files
+- **Deployment:** Docker multi-stage build or bare metal
 
 ---
 
 ## Quick Start
 
-### Option 1: Docker (Easiest)
+### Option 1: Docker (Recommended)
 
 ```bash
 # Clone the repository
-git clone https://github.com/Alfar0nt/SelfHosted-Proxmox-Dashboard.git
-cd SelfHosted-Proxmox-Dashboard
+git clone https://github.com/Alfar0nt/dhiarhome.git
+cd dhiarhome
 
 # Create your config file
 cp config-example.yaml config.yaml
 nano config.yaml  # Edit with your settings
 
 # Build and run
-docker build -t homelab-dash .
+docker build -t dhiarhome .
 docker run -d \
   -p 8080:8080 \
   -v $(pwd)/config.yaml:/app/config.yaml \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  homelab-dash
+  dhiarhome
 ```
 
 Open `http://localhost:8080` in your browser.
@@ -57,12 +71,13 @@ Open `http://localhost:8080` in your browser.
 
 ```bash
 # Install Go from https://go.dev/
+
 # Clone and build
-git clone https://github.com/Alfar0nt/SelfHosted-Proxmox-Dashboard.git
-cd SelfHosted-Proxmox-Dashboard
+git clone https://github.com/Alfar0nt/dhiarhome.git
+cd dhiarhome
 cp config-example.yaml config.yaml
-go build -o dashboard main.go
-./dashboard
+go build -o dhiarhome main.go
+./dhiarhome
 ```
 
 For detailed deployment instructions, see [documentation/deployment.md](documentation/deployment.md).
@@ -120,13 +135,16 @@ Full documentation is available in the `/documentation` folder:
 
 - **[docs.md](documentation/docs.md)** - Complete project documentation, architecture, and technical details
 - **[deployment.md](documentation/deployment.md)** - Deployment guides (Docker, bare metal, systemd, reverse proxy)
-- **[prompt-history.md](documentation/prompt-history.md)** - Conversation log and development history
+- **[to-do.md](documentation/to-do.md)** - Feature implementation roadmap
+- **[prompt-history.md](documentation/prompt-history.md)** - Development conversation log
+- **[changelogs.md](documentation/changelogs.md)** - Version history and changes
 
 ---
 
 ## Project Structure
 
 ```
+dhiarhome/
 ├── main.go                 # Application entry point
 ├── config.yaml             # Your configuration (gitignored)
 ├── config-example.yaml     # Configuration template
@@ -139,8 +157,9 @@ Full documentation is available in the `/documentation` folder:
 │   └── proxmox/           # Proxmox API client
 ├── static/
 │   └── index.html         # Main dashboard page
-└── templates/
-    └── status.html        # Status template
+├── templates/
+│   └── status.html        # Status template
+└── documentation/         # Project documentation
 ```
 
 ---
@@ -165,12 +184,25 @@ For more troubleshooting, see [documentation/deployment.md](documentation/deploy
 
 ## Why This Project?
 
-Home servers often have limited resources. Many existing dashboards are heavy and require running databases or complex setups. This project provides:
+Home servers often have limited resources. Many existing dashboards are heavy and require running databases or complex setups. dhiarhome provides:
 
 - **Zero database** - All data fetched in real-time
 - **Minimal resources** - ~10-20MB RAM, <1% CPU
 - **Simple deployment** - Single binary or Docker container
 - **Easy customization** - Edit YAML, not code
+
+---
+
+## Roadmap
+
+Planned features (see [to-do.md](documentation/to-do.md) for details):
+
+- Customizable background images
+- Enhanced glassmorphism theme
+- Weather and date/time widgets
+- Network interface monitoring
+- Custom bookmarks and links
+- Service integrations (Plex, Radarr, Sonarr, Portainer)
 
 ---
 

@@ -1,8 +1,8 @@
-# Proxmox Dashboard - Full Project Documentation
+# dhiarhome - Full Project Documentation
 
 ## Project Overview
 
-**Proxmox Dashboard** is an ultra-lightweight, self-hosted web dashboard designed for monitoring homelab servers running Proxmox VE. It provides real-time visibility into server health metrics, Docker container status, and web service uptime—all from a single, beautiful dark-mode interface.
+**dhiarhome** is an ultra-lightweight, self-hosted web dashboard designed for monitoring homelab servers running Proxmox VE. It provides real-time visibility into server health metrics, Docker container status, and web service uptime—all from a single, beautiful dark-mode interface.
 
 ### Purpose
 
@@ -70,7 +70,7 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 ## Project Structure
 
 ```
-personalProject-Dashboard/
+dhiarhome/
 ├── main.go                      # Application entry point
 ├── config.yaml                  # User configuration (gitignored)
 ├── config-example.yaml          # Configuration template
