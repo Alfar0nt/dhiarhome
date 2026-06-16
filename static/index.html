@@ -14,6 +14,122 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- HTMX -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+    <script>
+    // Custom HTMX swap: DOM diff to update text/attrs in-place.
+    // Preserves glass-card elements so backdrop-filter layers aren't destroyed.
+    htmx.defineExtension('merge-swap', {
+        onEvent: function(name, evt) {
+            if (name === 'htmx:beforeSwap') {
+                var target = evt.detail.target;
+                var newHTML = evt.detail.serverResponse;
+
+                // First load (skeleton): do normal innerHTML swap
+                if (!target.querySelector('.glass-card')) {
+                    return;
+                }
+
+                var temp = document.createElement('div');
+                temp.innerHTML = newHTML;
+                mergeDOM(target, temp);
+
+                evt.preventDefault();
+                return false;
+            }
+        }
+    });
+
+    function mergeDOM(current, incoming) {
+        patchChildren(current, incoming);
+    }
+
+    function patchChildren(curParent, newParent) {
+        var curNodes = Array.from(curParent.childNodes);
+        var newNodes = Array.from(newParent.childNodes);
+
+        // Filter out blank text nodes for comparison stability
+        var curFiltered = curNodes.filter(function(n) {
+            return n.nodeType !== 3 || n.textContent.trim().length > 0;
+        });
+        var newFiltered = newNodes.filter(function(n) {
+            return n.nodeType !== 3 || n.textContent.trim().length > 0;
+        });
+
+        var maxLen = Math.max(curFiltered.length, newFiltered.length);
+
+        for (var i = 0; i < maxLen; i++) {
+            var cur = curFiltered[i];
+            var inc = newFiltered[i];
+
+            if (!cur && inc) {
+                // New node: append clone
+                curParent.appendChild(inc.cloneNode(true));
+                continue;
+            }
+            if (cur && !inc) {
+                // Removed node: remove from DOM
+                cur.parentNode.removeChild(cur);
+                continue;
+            }
+
+            // Both exist: check if same type
+            if (cur.nodeType !== inc.nodeType ||
+                (cur.nodeType === 1 && cur.tagName !== inc.tagName)) {
+                // Structure changed: replace
+                cur.parentNode.replaceChild(inc.cloneNode(true), cur);
+                continue;
+            }
+
+            if (cur.nodeType === 3) {
+                // Text node: update value
+                if (cur.textContent !== inc.textContent) {
+                    cur.textContent = inc.textContent;
+                }
+                continue;
+            }
+
+            // Element node: skip elements marked data-preserve (Alpine.js interactive zones)
+            if (cur.nodeType === 1 && cur.hasAttribute && cur.hasAttribute('data-preserve')) {
+                continue;
+            }
+
+            // Element node: sync dynamic attributes
+            syncAttrs(cur, inc);
+            syncStyle(cur, inc);
+            // Recurse into children
+            patchChildren(cur, inc);
+        }
+    }
+
+    function syncAttrs(cur, inc) {
+        // Always sync these dynamic attributes
+        var dynamic = ['class', 'style', 'aria-valuenow', 'aria-label', 'role'];
+        dynamic.forEach(function(name) {
+            var newVal = inc.getAttribute(name);
+            var curVal = cur.getAttribute(name);
+            if (newVal !== curVal) {
+                if (newVal === null) {
+                    cur.removeAttribute(name);
+                } else {
+                    cur.setAttribute(name, newVal);
+                }
+            }
+        });
+    }
+
+    function syncStyle(cur, inc) {
+        var newStyle = inc.getAttribute('style');
+        var curStyle = cur.getAttribute('style');
+        if (newStyle !== curStyle) {
+            if (newStyle === null) {
+                cur.removeAttribute('style');
+            } else {
+                cur.setAttribute('style', newStyle);
+            }
+        }
+    }
+    </script>
+    <!-- Alpine.js for interactive todo widget -->
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
 
     <style>
         /* ─── CSS Variables ─────────────────────────────────────────── */
@@ -191,7 +307,7 @@
         <div
             hx-get="/status"
             hx-trigger="load, every 5s"
-            hx-swap="innerHTML transition:true"
+            hx-swap="innerHTML transition:true" hx-ext="merge-swap"
             id="dashboard-content"
             aria-live="polite"
             aria-label="Dashboard metrics and service status"

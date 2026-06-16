@@ -19,6 +19,11 @@ type WeatherWidget struct {
 		data      *WidgetData
 		fetchedAt time.Time
 	}
+	mockCache struct {
+		sync.RWMutex
+		data      *WidgetData
+		fetchedAt time.Time
+	}
 }
 
 // openMeteoResponse represents the API response from Open-Meteo.
@@ -114,6 +119,15 @@ func (w *WeatherWidget) fetchFromAPI() (*WidgetData, error) {
 }
 
 func (w *WeatherWidget) mockData() *WidgetData {
+	// Cache mock data for 5 minutes to prevent random changes on every HTMX poll
+	w.mockCache.RLock()
+	if w.mockCache.data != nil && time.Since(w.mockCache.fetchedAt) < 5*time.Minute {
+		data := w.mockCache.data
+		w.mockCache.RUnlock()
+		return data
+	}
+	w.mockCache.RUnlock()
+
 	conditions := []struct {
 		icon string
 		desc string
@@ -132,7 +146,7 @@ func (w *WeatherWidget) mockData() *WidgetData {
 		temp = temp*9/5 + 32
 	}
 
-	return &WidgetData{
+	result := &WidgetData{
 		Type:  "weather",
 		Label: "Weather",
 		Icon:  c.icon,
@@ -143,6 +157,13 @@ func (w *WeatherWidget) mockData() *WidgetData {
 			"wind_speed":  fmt.Sprintf("%.0f km/h", 5.0+rand.Float64()*20.0),
 		},
 	}
+
+	w.mockCache.Lock()
+	w.mockCache.data = result
+	w.mockCache.fetchedAt = time.Now()
+	w.mockCache.Unlock()
+
+	return result
 }
 
 // wmoCodeToDescription maps WMO weather codes to icons and descriptions.

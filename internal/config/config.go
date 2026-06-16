@@ -12,6 +12,8 @@ type Config struct {
 	Services   []ServiceConfig  `yaml:"services"`
 	Appearance AppearanceConfig `yaml:"appearance"`
 	Widgets    WidgetsConfig    `yaml:"widgets"`
+	Network    NetworkConfig    `yaml:"network"`
+	Todos      TodoConfig       `yaml:"todos"`
 }
 
 type AppearanceConfig struct {
@@ -75,6 +77,26 @@ type CustomTextWidgetConfig struct {
 	Content string `yaml:"content"`
 }
 
+type NetworkConfig struct {
+	Enabled        bool          `yaml:"enabled"`
+	Interfaces     []NetIfConfig `yaml:"interfaces"`
+	ShowSpeed      bool          `yaml:"show_speed"`
+	ShowTotal      bool          `yaml:"show_total_transfer"`
+	UpdateInterval int           `yaml:"update_interval"`
+	Mock           bool          `yaml:"mock"`
+}
+
+type NetIfConfig struct {
+	Name  string `yaml:"name"`
+	Label string `yaml:"label"`
+}
+
+type TodoConfig struct {
+	Enabled  bool   `yaml:"enabled"`
+	FilePath string `yaml:"file_path"` // JSON file for persistence
+	Title    string `yaml:"title"`
+}
+
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -119,5 +141,16 @@ func (c *Config) setDefaults() {
 	}
 	if c.Widgets.CustomText.Title == "" {
 		c.Widgets.CustomText.Title = "Note"
+	}
+	// Network defaults
+	if c.Network.UpdateInterval == 0 {
+		c.Network.UpdateInterval = 3
+	}
+	// Todo defaults
+	if c.Todos.FilePath == "" {
+		c.Todos.FilePath = "data/todos.json"
+	}
+	if c.Todos.Title == "" {
+		c.Todos.Title = "To-Do"
 	}
 }

@@ -179,8 +179,8 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 ## Phase 3: Network Monitoring
 
 ### Step 3.1 — Create Network Package
-- [ ] Create `internal/network/` directory
-- [ ] Create `internal/network/types.go` with data structures:
+- [x] Create `internal/network/` directory
+- [x] Create `internal/network/types.go` with data structures:
   ```go
   type InterfaceStats struct {
       Name      string
@@ -192,29 +192,29 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       TxRate    float64 // bytes/sec
   }
   ```
-- [ ] Create `internal/network/monitor.go` with `Monitor` struct
+- [x] Create `internal/network/monitor.go` with `Monitor` struct
 
 ### Step 3.2 — Parse `/proc/net/dev` for Interface Stats
-- [ ] Implement `readProcNetDev()` function:
+- [x] Implement `readProcNetDev()` function:
   - Open and parse `/proc/net/dev`
   - Extract bytes received/transmitted per interface
   - Skip loopback by default
-- [ ] Handle file read errors gracefully
-- [ ] Return map of interface name → byte counts
-- [ ] Test: parse sample `/proc/net/dev` output, verify values
+- [x] Handle file read errors gracefully
+- [x] Return map of interface name → byte counts
+- [x] Test: parse sample `/proc/net/dev` output, verify values
 
 ### Step 3.3 — Calculate Network Speed
-- [ ] Implement speed calculation using two samples:
+- [x] Implement speed calculation using two samples:
   - Store previous reading with timestamp
   - Calculate `rate = (current_bytes - previous_bytes) / elapsed_seconds`
   - Smooth with moving average (last 3 samples)
-- [ ] Run background goroutine that samples every N seconds (configurable)
-- [ ] Format speeds as human-readable: b/s, Kbit/s, Mbit/s, Gbit/s
-- [ ] Format totals as human-readable: KB, MB, GB, TB
-- [ ] Test: verify speed calculation accuracy with known values
+- [x] Run background goroutine that samples every N seconds (configurable)
+- [x] Format speeds as human-readable: b/s, Kbit/s, Mbit/s, Gbit/s
+- [x] Format totals as human-readable: KB, MB, GB, TB
+- [x] Test: verify speed calculation accuracy with known values
 
 ### Step 3.4 — Add Network Config & Integration
-- [ ] Add `NetworkConfig` struct to `internal/config/config.go`:
+- [x] Add `NetworkConfig` struct to `internal/config/config.go`:
   ```go
   type NetworkConfig struct {
       Enabled        bool              `yaml:"enabled"`
@@ -228,21 +228,21 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
       Label string `yaml:"label"`
   }
   ```
-- [ ] Initialize network monitor in `main.go` (if enabled)
-- [ ] Start background sampling goroutine
-- [ ] Add network stats to `DashboardData` struct
-- [ ] Test: verify monitor starts and collects data
+- [x] Initialize network monitor in `main.go` (if enabled)
+- [x] Start background sampling goroutine
+- [x] Add network stats to `DashboardData` struct
+- [x] Test: verify monitor starts and collects data
 
 ### Step 3.5 — Create Network Stats UI
-- [ ] Create `templates/network.html` template
-- [ ] Design cards matching the Homepage screenshot style:
+- [x] Create `templates/network.html` template
+- [x] Design cards matching the Homepage screenshot style:
   - Interface name and label (e.g., "Internal: vmbr1")
   - RX/TX speeds with directional arrows (↓ ↑)
   - Total transferred data
   - Status indicator (up/down)
-- [ ] Add to main dashboard grid (below Proxmox metrics)
-- [ ] Responsive: stack vertically on mobile
-- [ ] Test: verify UI updates via HTMX polling
+- [x] Add to main dashboard grid (below Proxmox metrics)
+- [x] Responsive: stack vertically on mobile
+- [x] Test: verify UI updates via HTMX polling
 
 ---
 
@@ -488,8 +488,8 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 |-------|-------|------|-----------|
 | 1. Visual Enhancements | 6 | 6 | 0 |
 | 2. Utility Widgets | 6 | 6 | 0 |
-| 3. Network Monitoring | 5 | 0 | 5 |
+| 3. Network Monitoring | 5 | 5 | 0 |
 | 4. Bookmarks & Links | 4 | 0 | 4 |
 | 5. Service Widgets | 6 | 0 | 6 |
 | 6. Polish & Docs | 6 | 0 | 6 |
-| **Total** | **33** | **12** | **21** |
+| **Total** | **33** | **17** | **16** |

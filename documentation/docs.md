@@ -41,12 +41,23 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - Random varying metrics for realistic testing
 
 ### 5. Utility Widgets
-- **Weather** — Open-Meteo API integration (free, no API key), temperature, condition, wind speed, configurable caching, mock mode
-- **Date/Time** — Configurable timezone, 12h/24h format, client-side live clock (updates every second)
-- **System Info** — Hostname, OS name, system uptime, Go runtime stats (goroutines, memory)
-- **Custom Text** — Configurable title and content, HTML-sanitized for security
-- Responsive grid layout (1-4 columns based on screen size)
+- **Weather + Time** — Combined into a single compact card: live clock at top, weather condition below a divider. Mock weather cached for 5 minutes to prevent randomization on every HTMX poll
+- **System Info** — Hostname, OS name, system uptime, Go runtime stats (goroutines, memory) in compact card
+- **Custom Text** — Configurable title and content, HTML-sanitized, rendered as left-most compact card
+- **Network Summary** — Compact card showing per-interface status with live RX/TX speeds
+- **Standalone fallbacks** — Weather and DateTime render individually if only one is enabled
+- **Mobile layout** — 2-column grid with 4 widgets (perfect 2x2): custom text, weather+time, system info, network
+- **Desktop layout** — 4-column row: custom text, weather+time, system info, network
 - Glassmorphism card styling matching the dashboard theme
+
+### 6. Network Monitoring
+- **`/proc/net/dev` Parsing** — Reads Linux kernel interface byte counts directly
+- **Speed Calculation** — Two-sample rate with moving average smoothing (last 3 samples)
+- **Human-Readable Formatting** — Speeds: b/s, Kbit/s, Mbit/s, Gbit/s; Totals: KB, MB, GB, TB
+- **Configurable Interfaces** — Monitor specific interfaces by name with custom labels
+- **Background Sampling** — Goroutine polls at configurable interval (default 3 seconds)
+- **Mock Mode** — Simulates network traffic for UI testing without real interfaces
+- **Compact Summary Card** — Displayed in top widget row with per-interface status and live speeds
 
 ---
 
@@ -63,6 +74,7 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **HTML5** - Semantic markup
 - **Tailwind CSS** (CDN) - Utility-first CSS framework for dark-mode design
 - **HTMX 1.9.10** - Hypermedia-driven interactions (no JavaScript required)
+- **Alpine.js 3.x** (CDN) - Lightweight reactive framework for interactive to-do widget
 
 ### APIs & Protocols
 - **Proxmox VE API** - RESTful API for node status
@@ -97,6 +109,11 @@ dhiarhome/
 │   │   └── http.go             # HTTP service health checker
 │   ├── proxmox/
 │   │   └── client.go           # Proxmox API client
+│   ├── network/
+│   │   ├── types.go            # InterfaceStats struct + rawSample type
+│   │   └── monitor.go          # /proc/net/dev parser, speed calc, mock mode
+│   ├── todo/
+│   │   └── store.go            # Persistent to-do store (JSON file)
 │   └── widgets/
 │       ├── widget.go           # Widget interface + WidgetData struct
 │       ├── registry.go         # Widget registry manager
@@ -110,6 +127,8 @@ dhiarhome/
 │   └── backgrounds/            # Custom background images (local files)
 ├── templates/
 │   ├── status.html             # Server-side rendered status template
+│   ├── network.html            # Network interface cards template
+│   ├── todo.html               # Interactive to-do list template (Alpine.js)
 │   └── widgets/
 │       └── widgets.html        # Widget rendering template (all types)
 │
@@ -129,6 +148,7 @@ dhiarhome/
 2. **Background Polling**
    - Goroutine polls configured services every 10 seconds
    - Stores results in thread-safe linked list cache (max 100 entries)
+   - Network monitor goroutine samples `/proc/net/dev` at configurable interval (default 3s)
 
 3. **HTTP Requests**
    - User accesses `http://localhost:8080/`
@@ -148,7 +168,7 @@ dhiarhome/
 
 #### Configuration Package (`internal/config`)
 - Parses YAML configuration file
-- Defines structs for Proxmox, Docker, Services, and Appearance config
+- Defines structs for Proxmox, Docker, Services, Appearance, Widgets, and Network config
 - `setDefaults()` applies sensible defaults for omitted appearance fields
 - Validates required fields
 
@@ -177,6 +197,16 @@ dhiarhome/
 - Returns status: "Online" (2xx), "Offline" (error), or "Warning" (non-2xx)
 - Measures response time
 
+#### Network Monitor (`internal/network`)
+- Parses `/proc/net/dev` for per-interface byte counts
+- Two-sample rate calculation with moving average smoothing (last 3 samples)
+- Background goroutine samples at configurable interval
+- `formatSpeed()`: b/s → Kbit/s → Mbit/s → Gbit/s
+- `formatBytes()`: B → KB → MB → GB → TB
+- Mock mode generates random traffic for UI testing
+- Thread-safe access via `sync.RWMutex`
+- **Display caching** (10s TTL): `GetStats()` caches formatted output to prevent rapid HTML changes during HTMX swaps. Raw sampling continues at full rate for accuracy.
+
 #### Template Rendering
 - Go `html/template` with custom functions:
   - `percent(used, total)` - Calculate percentage
@@ -184,15 +214,43 @@ dhiarhome/
   - `gb(bytes)` - Convert bytes to gigabytes
 - `index.html` rendered as Go template with appearance config data
 - `status.html` rendered with current metrics and service states
+- `combineWidgets()` post-processes widget data: merges weather+datetime into combined card, reorders for layout
 - Conditional rendering for online/offline states
 - Progress bars for CPU/memory/disk usage
 - Glassmorphism card styling via CSS variables
+
+#### Client-Side DOM Diff Swap
+- Custom HTMX extension (`merge-swap`) replaces default `innerHTML` swap
+- `mergeDOM()` recursively walks current vs new DOM trees
+- Updates only text nodes and dynamic attributes (class, style, aria-valuenow)
+- Preserves glass-card elements so `backdrop-filter: blur()` GPU compositing layers aren't destroyed
+- `data-preserve` attribute: marks interactive zones (e.g., Alpine.js todo widget) that must be skipped entirely during diff
+- Eliminates backdrop-filter flickering during 5s HTMX polling
+- Falls back to normal `innerHTML` on first load (skeleton → full render)
+
+#### To-Do Store (`internal/todo`)
+- Thread-safe CRUD store with JSON file persistence
+- `NewStore(filePath)` loads existing data, auto-increments IDs
+- `GetAll()`, `Add(text)`, `Toggle(id)`, `Delete(id)` with `sync.RWMutex`
+- Saves to `data/todos.json` on every mutation
+- Interactive UI via Alpine.js (client-side `fetch()` to REST API)
+
+#### CPU Info (`internal/proxmox`)
+- `CPUInfo` struct: `ModelName`, `Cores` (physical), `Threads` (logical)
+- `ReadLocalCPUInfo()` parses `/proc/cpuinfo` for accurate core/thread counts
+- Handles multi-socket systems, hyperthreading, and various CPU topologies
+- Read once at startup (static hardware data, no polling needed)
+- Mock mode provides simulated info (i7-12700K, 12C/20T)
 
 #### HTTP Handlers
 - `GET /` — Renders `index.html` as Go template (or serves static files)
 - `GET /status` — Returns HTMX HTML fragment with current metrics
 - `GET /background` — Serves local background image file with MIME type + 1h cache
 - `GET /api/background` — Returns JSON with background source, opacity, blur
+- `GET /api/todos` — Returns all todos as JSON array
+- `POST /api/todos` — Creates a new todo (body: `{"text": "..."}`)
+- `PUT /api/todos/{id}` — Toggles todo done state
+- `DELETE /api/todos/{id}` — Deletes a todo
 
 ---
 
@@ -268,6 +326,33 @@ widgets:
 
 > **Note:** Each widget has an `enabled` flag. Disabled widgets are not registered and consume zero resources.
 
+### Network Section
+```yaml
+network:
+  enabled: false                          # Enable network monitoring
+  show_speed: true                        # Show real-time RX/TX speed
+  show_total_transfer: true               # Show cumulative total bytes
+  update_interval: 3                      # Seconds between /proc/net/dev samples (default: 3)
+  mock: false                             # Use mock data for testing
+  interfaces:
+    - name: "eth0"                        # Linux interface name (from /proc/net/dev)
+      label: "Primary"                    # Human-friendly display label
+    - name: "wlan0"
+      label: "WiFi"
+```
+
+> **Note:** Interface names must match entries in `/proc/net/dev`. Use `cat /proc/net/dev` to list available interfaces. The `mock` flag enables simulated traffic for UI testing without real interfaces.
+
+### Todos Section
+```yaml
+todos:
+  enabled: false               # Enable interactive to-do list
+  file_path: "data/todos.json" # JSON file for persistent storage
+  title: "To-Do"               # Widget title displayed on the card
+```
+
+> **Note:** Todo data is persisted to the specified JSON file and survives server restarts. The `data/` directory is created automatically and gitignored.
+
 ---
 
 ## Security Considerations
@@ -319,10 +404,10 @@ widgets:
 
 See [to-do.md](to-do.md) for the full phased implementation plan (33 steps). Key upcoming features:
 
-- Weather widget (Open-Meteo API, free, no key)
-- Date/time widget with timezone support
-- System info widget (hostname, OS, uptime)
-- Network interface monitoring (speed, RX/TX)
+- ~~Weather widget (Open-Meteo API, free, no key)~~
+- ~~Date/time widget with timezone support~~
+- ~~System info widget (hostname, OS, uptime)~~
+- ~~Network interface monitoring (speed, RX/TX)~~
 - Custom bookmarks and web links with icon support
 - Service integration framework (Plex, Radarr, Sonarr, Portainer)
 - Generic HTTP API widget for custom services

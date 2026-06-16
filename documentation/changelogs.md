@@ -7,12 +7,214 @@ All notable changes to this project are documented in this file.
 ## [Unreleased] - Pre-Feature Roadmap
 
 ### Planned
-- Network interface monitoring (speed, RX/TX, connections)
 - Custom bookmarks and web links with icon support
 - Service integration framework (Plex, Radarr, Sonarr, Portainer)
 - Generic HTTP API widget for custom services
 
 See [to-do.md](to-do.md) for the full 33-step implementation plan.
+
+---
+
+## [0.7.1] - 2026-06-16 - Todo Widget Bug Fix & Compact Redesign
+
+### Fixed
+- **Cannot add new todos** — Root cause: the merge-swap DOM diff was patching the todo card's `<script>` tag content on each HTMX poll, disrupting Alpine.js state. Fixed by adding `data-preserve` attribute to the todo card, which tells the merge-swap to skip the element entirely (including its children and script).
+
+### Changed
+- `static/index.html`: Added `data-preserve` check in `patchChildren()` — elements with this attribute are skipped during DOM diffing
+- `templates/todo.html`: Added `data-preserve` attribute to todo card root element
+- **Compact redesign**: `p-6` → `p-4`, `mb-6` → `mb-4`, `text-xl` → `text-base`, `text-sm` → `text-xs`, `py-2` → `py-1.5`, checkbox `w-5` → `w-4`, icons smaller, `space-y-2` → `space-y-1`, tighter spacing throughout
+
+### Files Modified
+- `static/index.html` — `data-preserve` skip logic in merge-swap
+- `templates/todo.html` — Preserve attribute + compact styling
+- All documentation files updated
+
+---
+
+## [0.7.0] - 2026-06-16 - Interactive To-Do List & CPU Core/Thread Display
+
+### Added
+- **Interactive To-Do List widget** — Users can add, check off, and delete tasks directly on the dashboard. Persists to `data/todos.json`.
+  - `internal/todo/store.go`: Thread-safe CRUD store with JSON file persistence (`NewStore`, `GetAll`, `Add`, `Toggle`, `Delete`)
+  - `templates/todo.html`: Alpine.js-powered interactive UI with add form, checkboxes, delete buttons, done counter, sorted display (active first, then done)
+  - API endpoints: `GET /api/todos` (list), `POST /api/todos` (add), `PUT /api/todos/{id}` (toggle), `DELETE /api/todos/{id}` (delete)
+  - Config: `todos.enabled`, `todos.file_path`, `todos.title`
+- **CPU core/thread count** displayed in Proxmox CPU card (e.g., "8C / 16T")
+  - `proxmox.CPUInfo` struct with `ModelName`, `Cores`, `Threads`
+  - `ReadLocalCPUInfo()` parses `/proc/cpuinfo` for physical cores and logical threads
+  - Mock mode provides simulated CPU info (i7-12700K, 12C/20T)
+- **Alpine.js** (3.x CDN) for interactive todo widget
+
+### Changed
+- `internal/config/config.go`: Added `TodoConfig` struct with defaults
+- `main.go`: Todo store init, API routes, `DashboardData` fields, `localCPUInfo` read at startup
+- `templates/status.html`: Todo template inclusion, CPU card shows core/thread count
+- `.gitignore`: Added `data/` directory
+- `config.yaml` / `config-example.yaml`: Added `todos` section
+
+### Files Added
+- `internal/todo/store.go` — Persistent to-do store
+- `templates/todo.html` — Interactive todo template
+
+### Files Modified
+- `internal/proxmox/client.go` — CPUInfo struct, ReadLocalCPUInfo()
+- `internal/config/config.go` — TodoConfig
+- `main.go` — Todo integration, CPU info, API handlers
+- `templates/status.html` — Todo inclusion, CPU cores
+- `static/index.html` — Alpine.js CDN
+- `config.yaml`, `config-example.yaml` — Todos section
+- `.gitignore` — data/ directory
+- All documentation files updated
+
+---
+
+## [0.6.0] - 2026-06-16 - Backdrop-Flicker Elimination via DOM Diff Swap
+
+### Fixed
+- **Persistent backdrop-filter flickering on data refresh** — Replaced HTMX's default `innerHTML` swap with a custom `merge-swap` extension that performs in-place DOM diffing. Instead of destroying and recreating all glass-card elements every 5 seconds, only text nodes and dynamic attributes (class, style, aria-valuenow) are updated. This preserves the browser's GPU compositing layers for `backdrop-filter: blur()`, eliminating the flicker entirely.
+
+### Added
+- **Custom HTMX swap extension** (`merge-swap`) in `static/index.html`:
+  - `mergeDOM()` — recursive tree walker that patches current DOM against new server HTML
+  - `patchChildren()` — filters blank text nodes, compares node types/tags, updates or replaces as needed
+  - `syncAttrs()` — syncs class, style, aria-valuenow, aria-label, role attributes
+  - Falls back to normal `innerHTML` on first load (skeleton → first render)
+
+### Changed
+- `static/index.html`: Added `hx-ext="merge-swap"` to `#dashboard-content` div, 100 lines of custom swap JS
+
+### Technical Details
+- First load: skeleton → full render uses standard `innerHTML` (no glass-cards exist yet)
+- Subsequent polls: DOM diff only touches text nodes and changed attributes
+- Script elements stay in DOM (not recreated), so client-side clock interval is not duplicated
+- Conditional rendering (service up/down transitions) correctly replaces the changed subtree
+
+### Files Modified
+- `static/index.html` — Custom merge-swap extension
+- All documentation files updated
+
+---
+
+## [0.5.3] - 2026-06-16 - Network Display Caching & Alignment Fix
+
+### Fixed
+- **Network speed flickering** — `GetStats()` now caches formatted display output for 10 seconds (`displayTTL`), preventing speed values from changing on every HTMX 5-second poll. Raw sampling continues at 3s interval for accuracy, but displayed strings stay stable.
+- **Network card text misalignment on mobile** — Increased spacing between interface name and speed values: `space-x-1.5` → `space-x-2`, added `ml-3` minimum gap to speed container, `flex-shrink-0` on dots and speed text to prevent squishing, `min-w-0` on name container for proper truncation, space added between arrow and value (`↓ 1.23 Mbit/s`).
+
+### Changed
+- `internal/network/monitor.go`: Added `displayMu`, `cachedStats`, `statsCacheAt`, `displayTTL` fields to `Monitor` struct. `GetStats()` returns cached output within 10-second window.
+- `templates/widgets/widgets.html`: Network card alignment improved with better spacing and flex constraints
+
+### Files Modified
+- `internal/network/monitor.go` — Display cache with 10s TTL
+- `templates/widgets/widgets.html` — Network card alignment fixes
+- All documentation files updated
+
+---
+
+## [0.5.2] - 2026-06-16 - Widget Stability & Layout Fixes
+
+### Fixed
+- **Mock weather randomizing every HTMX poll** — `mockData()` now caches result for 5 minutes via `mockCache` struct, preventing weather conditions from changing every 5 seconds during auto-refresh
+- **Date format inconsistency** — Server-rendered date now includes weekday (`"Monday, January 2, 2006"`) to match client-side JS clock format (`weekday:'long'`), eliminating visible format jump
+- **Backdrop-filter flickering on widget swap** — Root cause was data instability from above bugs causing different HTML on every HTMX swap; fixing data caching eliminates most visible flicker
+
+### Changed
+- **Network monitor moved to widget row** — Compact network summary card added as 4th widget in top row (alongside custom_text, weather_time, system_info)
+- **Widget grid updated** to `grid-cols-2 lg:grid-cols-4` — Mobile: perfect 2x2 grid (4 widgets); Desktop: 4-column row
+- **Network summary card** shows per-interface status with live RX/TX speeds in compact format
+- Removed full network card (`{{ template "network.html" . }}`) from bottom grid section
+
+### Files Modified
+- `internal/widgets/weather.go` — Added `mockCache` struct with 5-minute TTL for mock data
+- `internal/widgets/datetime.go` — Date format changed to include weekday
+- `templates/widgets/widgets.html` — Grid updated to 4-col, network summary card added
+- `templates/status.html` — Removed network template from bottom grid
+- All documentation files updated
+
+---
+
+## [0.5.1] - 2026-06-16 - Dashboard Layout Refinements
+
+### Changed
+- **Weather + DateTime combined** into a single compact `weather_time` card via `combineWidgets()` in `main.go`
+  - Time shown at top (with live client-side clock), weather below a divider
+  - Saves vertical space by eliminating a full card
+- **Custom Text widget moved to left** (first position in widget row) with compact card styling
+- **Widget grid compacted** from `grid-cols-1 sm:grid-cols-2 lg:grid-cols-4` to `grid-cols-2 lg:grid-cols-3`
+  - Mobile: 2-column grid (3 widgets fit without covering monitoring cards below)
+  - Desktop: 3-column grid (custom_text, weather_time, system_info)
+- **All widget cards reduced padding** from `p-5` to `p-4`, font sizes reduced for compactness
+- **Network Monitor repositioned** from below Proxmox metrics to below Monitored Services + Docker Containers
+- **Standalone fallbacks**: Weather and DateTime still render individually if only one is enabled
+
+### Fixed
+- Clock JS `dateEl` null check added (prevents error when `widget-date` element doesn't exist)
+
+### Files Modified
+- `main.go` — Added `combineWidgets()` function, widget data post-processing in `statusHandler`
+- `templates/widgets/widgets.html` — Full rewrite: combined weather_time card, compact styling, 2-col mobile grid
+- `templates/status.html` — Moved `{{ template "network.html" . }}` below Services + Docker sections
+- `documentation/changelogs.md` — This entry
+- `documentation/prompt-history.md` — Session 11
+- `documentation/docs.md` — Updated widget layout description
+
+---
+
+## [0.5.0] - 2026-06-16 - Network Monitoring (Phase 3 Complete)
+
+### Added
+- **Network Package** (`internal/network/`)
+  - `types.go`: `InterfaceStats` struct with speed, total, and human-readable formatted fields
+  - `monitor.go`: Background sampling goroutine with configurable interval
+
+- **`/proc/net/dev` Parser** (`internal/network/monitor.go`)
+  - `readProcNetDev()` parses Linux kernel interface byte counts
+  - Skips header lines, handles malformed data gracefully
+  - Returns map of interface name to byte counts
+
+- **Speed Calculation**
+  - Two-sample rate calculation: `rate = (current_bytes - previous_bytes) / elapsed_seconds`
+  - Moving average smoothing over last 3 samples
+  - Human-readable formatting: b/s, Kbit/s, Mbit/s, Gbit/s
+  - Human-readable totals: KB, MB, GB, TB
+
+- **Mock Mode**
+  - Simulates network traffic with random increments (0.5-2.5 MB RX, 0.1-0.6 MB TX per sample)
+  - Enables UI testing without real network interfaces
+
+- **Network Config** (`internal/config/config.go`)
+  - `NetworkConfig` struct: enabled, interfaces list, show_speed, show_total_transfer, update_interval, mock
+  - `NetIfConfig` struct: interface name + human-friendly label
+  - Default update interval: 3 seconds
+
+- **Network Template** (`templates/network.html`)
+  - Responsive grid: 1 col (mobile) → 2 cols (md) → N cols (lg) based on interface count
+  - Per-interface card: name, label, up/down status indicator
+  - RX/TX speeds with directional arrows (↓ ↑) in blue/emerald
+  - Cumulative total bytes transferred
+  - Glassmorphism styling consistent with dashboard theme
+  - ARIA labels on interface cards
+
+### Changed
+- `main.go`: Added `netMonitor` global, network monitor initialization from config
+- `main.go`: `DashboardData` struct now includes `Network`, `NetShowSpeed`, `NetShowTotal`
+- `main.go`: Template parsing now includes `templates/network.html`
+- `templates/status.html`: Includes network template via `{{ template "network.html" . }}`
+- `config.yaml` / `config-example.yaml`: Added `network` section
+
+### Files Created
+- `internal/network/types.go` — InterfaceStats struct + rawSample internal type
+- `internal/network/monitor.go` — Network monitor with /proc/net/dev parsing, speed calculation, mock mode
+- `templates/network.html` — Network interface cards template
+
+### Files Modified
+- `internal/config/config.go` — NetworkConfig + NetIfConfig structs + defaults
+- `main.go` — Network monitor init, template parsing, DashboardData fields
+- `templates/status.html` — Network template inclusion
+- `config-example.yaml` — Network section with comments
+- `config.yaml` — Network section (enabled with mock data)
 
 ---
 
@@ -299,7 +501,13 @@ personalProject-Dashboard/
 | 0.2.0 | 2026-06-16 | Rebrand to "dhiarhome" + documentation system |
 | 0.3.0 | 2026-06-16 | Visual enhancements: glassmorphism, background, animations, accessibility |
 | 0.4.0 | 2026-06-16 | Utility widgets: weather, datetime, system info, custom text |
-| 0.5.0 | Planned | Network monitoring |
-| 0.6.0 | Planned | Bookmarks and custom links |
-| 0.7.0 | Planned | Service integration framework |
+| 0.5.0 | 2026-06-16 | Network monitoring: /proc/net/dev parsing, speed calculation, interface cards |
+| 0.5.1 | 2026-06-16 | Layout refinements: combined weather+time card, compact mobile grid, network repositioned |
+| 0.5.2 | 2026-06-16 | Widget stability: mock weather caching, date format fix, network in widget row (2x2 mobile) |
+| 0.5.3 | 2026-06-16 | Network display caching (10s TTL), mobile alignment fix |
+| 0.6.0 | 2026-06-16 | Backdrop-flicker elimination: custom DOM diff swap extension |
+| 0.7.0 | 2026-06-16 | Interactive to-do list (Alpine.js), CPU core/thread display |
+| 0.7.1 | 2026-06-16 | Todo add bug fix (data-preserve), compact redesign |
+| 0.8.0 | Planned | Bookmarks and custom links |
+| 0.9.0 | Planned | Service integration framework |
 | 1.0.0 | Planned | First stable release with all planned features |

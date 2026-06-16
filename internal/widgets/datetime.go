@@ -36,7 +36,7 @@ func (d *DateTimeWidget) Fetch() (*WidgetData, error) {
 	}
 
 	dayOfWeek := now.Format("Monday")
-	fullDate := now.Format("January 2, 2006")
+	fullDate := now.Format("Monday, January 2, 2006") // include weekday to match JS clock format
 
 	return &WidgetData{
 		Type:  "datetime",

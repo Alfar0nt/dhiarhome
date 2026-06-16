@@ -1,66 +1,122 @@
 {{ if .Widgets }}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
     {{ range .Widgets }}
 
-    {{ if eq .Type "weather" }}
-    <!-- Weather Widget -->
-    <div class="glass-card p-5" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
-        <div class="flex items-center justify-between mb-3">
-            <p class="metric-label">{{ .Label }}</p>
-            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+    {{ if eq .Type "weather_time" }}
+    <!-- Combined Weather + Time Widget -->
+    <div class="glass-card p-4" tabindex="0" aria-label="Weather and time: {{ index .Values "condition" }}, {{ index .Values "temperature" }}, {{ index .Values "time" }}">
+        <!-- Time row -->
+        <div class="flex items-baseline justify-between mb-1">
+            <span class="text-xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</span>
+            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
-        <p class="text-2xl font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
-        <p class="text-sm text-gray-400 mt-1">{{ index .Values "condition" }}</p>
-        <p class="text-xs text-gray-500 mt-2 tabular-nums">💨 {{ index .Values "wind_speed" }}</p>
+        <p class="text-[11px] text-gray-400 truncate" id="widget-date">{{ index .Values "date" }}</p>
+
+        <div class="my-2 border-t border-white/5"></div>
+
+        <!-- Weather row -->
+        <div class="flex items-center justify-between">
+            <p class="text-lg font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
+            <span class="text-xs text-gray-500">💨 {{ index .Values "wind_speed" }}</span>
+        </div>
+        <p class="text-[11px] text-gray-400 mt-0.5">{{ index .Values "condition" }}</p>
+    </div>
+    {{ end }}
+
+    {{ if eq .Type "weather" }}
+    <!-- Weather Widget (standalone, when datetime is disabled) -->
+    <div class="glass-card p-4" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
+        <div class="flex items-center justify-between mb-1">
+            <p class="metric-label text-[10px]">{{ .Label }}</p>
+            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
+        </div>
+        <p class="text-xl font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5">{{ index .Values "condition" }}</p>
+        <p class="text-[10px] text-gray-500 mt-1 tabular-nums">💨 {{ index .Values "wind_speed" }}</p>
     </div>
     {{ end }}
 
     {{ if eq .Type "datetime" }}
-    <!-- DateTime Widget -->
-    <div class="glass-card p-5" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
-        <div class="flex items-center justify-between mb-3">
-            <p class="metric-label">{{ .Label }}</p>
-            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+    <!-- DateTime Widget (standalone, when weather is disabled) -->
+    <div class="glass-card p-4" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
+        <div class="flex items-center justify-between mb-1">
+            <p class="metric-label text-[10px]">{{ index .Values "day" }}</p>
+            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
-        <p class="text-2xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</p>
-        <p class="text-sm text-gray-400 mt-1" id="widget-date">{{ index .Values "date" }}</p>
-        <p class="text-xs text-gray-500 mt-2">{{ index .Values "timezone" }}</p>
+        <p class="text-xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</p>
+        <p class="text-[11px] text-gray-400 mt-0.5" id="widget-date">{{ index .Values "date" }}</p>
+        <p class="text-[10px] text-gray-500 mt-1">{{ index .Values "timezone" }}</p>
     </div>
     {{ end }}
 
     {{ if eq .Type "system_info" }}
-    <!-- System Info Widget -->
-    <div class="glass-card p-5" tabindex="0" aria-label="System info: {{ index .Values "hostname" }}, uptime {{ index .Values "uptime" }}">
-        <div class="flex items-center justify-between mb-3">
-            <p class="metric-label">{{ .Label }}</p>
-            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+    <!-- System Info Widget (compact) -->
+    <div class="glass-card p-4" tabindex="0" aria-label="System info: {{ index .Values "hostname" }}, uptime {{ index .Values "uptime" }}">
+        <div class="flex items-center justify-between mb-1">
+            <p class="metric-label text-[10px]">{{ .Label }}</p>
+            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
         <p class="text-sm font-semibold text-white truncate">{{ index .Values "hostname" }}</p>
-        <p class="text-xs text-gray-400 mt-1 truncate">{{ index .Values "os" }}</p>
-        <div class="flex items-center justify-between mt-3">
+        <p class="text-[11px] text-gray-400 truncate">{{ index .Values "os" }}</p>
+        <div class="flex items-center justify-between mt-2">
             <div>
-                <p class="metric-label">Uptime</p>
-                <p class="text-sm font-semibold text-white tabular-nums">{{ index .Values "uptime" }}</p>
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Uptime</p>
+                <p class="text-xs font-semibold text-white tabular-nums">{{ index .Values "uptime" }}</p>
             </div>
             <div class="text-right">
-                <p class="metric-label">Go Mem</p>
-                <p class="text-sm font-semibold text-white tabular-nums">{{ index .Values "go_mem_mb" }}</p>
+                <p class="text-[10px] text-gray-500 uppercase tracking-wider">Go Mem</p>
+                <p class="text-xs font-semibold text-white tabular-nums">{{ index .Values "go_mem_mb" }}</p>
             </div>
         </div>
     </div>
     {{ end }}
 
     {{ if eq .Type "custom_text" }}
-    <!-- Custom Text Widget -->
-    <div class="glass-card p-5" tabindex="0" aria-label="{{ index .Values "title" }}">
-        <div class="flex items-center justify-between mb-3">
-            <p class="metric-label">{{ index .Values "title" }}</p>
-            <span class="text-2xl" aria-hidden="true">{{ .Icon }}</span>
+    <!-- Custom Text Widget (compact, left side) -->
+    <div class="glass-card p-4" tabindex="0" aria-label="{{ index .Values "title" }}">
+        <div class="flex items-center justify-between mb-1">
+            <p class="metric-label text-[10px]">{{ index .Values "title" }}</p>
+            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
-        <p class="text-sm text-gray-300 leading-relaxed whitespace-pre-line">{{ index .Values "content" }}</p>
+        <p class="text-xs text-gray-300 leading-relaxed whitespace-pre-line">{{ index .Values "content" }}</p>
     </div>
     {{ end }}
 
+    {{ end }}
+
+    {{ if .Network }}
+    <!-- Network Summary Widget (compact, 4th card) -->
+    <div class="glass-card p-4" tabindex="0" aria-label="Network monitor: {{ len .Network }} interfaces">
+        <div class="flex items-center justify-between mb-1">
+            <p class="metric-label text-[10px]">Network</p>
+            <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"></path>
+            </svg>
+        </div>
+        {{ range .Network }}
+        <div class="flex items-center justify-between {{ if gt (len $.Network) 1 }}mb-1.5 last:mb-0{{ end }}">
+            <div class="flex items-center space-x-2 min-w-0">
+                {{ if eq .Status "up" }}
+                    <span class="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
+                    </span>
+                {{ else }}
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-gray-500 flex-shrink-0" aria-hidden="true"></span>
+                {{ end }}
+                <span class="text-[11px] text-white font-medium truncate">{{ .Name }}</span>
+            </div>
+            {{ if eq .Status "up" }}
+            <div class="flex items-center space-x-3 text-[10px] tabular-nums flex-shrink-0 ml-3">
+                <span class="text-blue-400">↓ {{ .RxSpeed }}</span>
+                <span class="text-emerald-400">↑ {{ .TxSpeed }}</span>
+            </div>
+            {{ else }}
+            <span class="text-[10px] text-gray-500 ml-3">Down</span>
+            {{ end }}
+        </div>
+        {{ end }}
+    </div>
     {{ end }}
 </div>
 {{ end }}
@@ -91,7 +147,9 @@
                 h = h % 12 || 12;
                 timeEl.textContent = h + ':' + m + ':' + s + ' ' + ampm;
             }
-            dateEl.textContent = new Intl.DateTimeFormat('en-US', Object.assign({weekday:'long', month:'long', day:'numeric', year:'numeric'}, opts)).format(now);
+            if (dateEl) {
+                dateEl.textContent = new Intl.DateTimeFormat('en-US', Object.assign({weekday:'long', month:'long', day:'numeric', year:'numeric'}, opts)).format(now);
+            }
         } catch(e) {
             // Fallback: just use local time
         }

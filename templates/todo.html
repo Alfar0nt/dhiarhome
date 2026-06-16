@@ -1,0 +1,149 @@
+{{ if .TodoEnabled }}
+<!-- To-Do List Widget (preserved from HTMX swap, managed by Alpine.js) -->
+<div class="glass-card p-4 mb-4" data-preserve x-data="todoApp()" x-init="init()" aria-label="{{ .TodoTitle }}">
+    <div class="flex items-center justify-between mb-2">
+        <h2 class="text-base font-bold text-white flex items-center">
+            <svg class="w-5 h-5 mr-1.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path>
+            </svg>
+            <span>{{ .TodoTitle }}</span>
+        </h2>
+        <span class="text-[10px] text-gray-400 tabular-nums" x-show="todos.length > 0" x-text="doneCount + '/' + todos.length + ' done'"></span>
+    </div>
+
+    <!-- Add new todo -->
+    <form @submit.prevent="addTodo()" class="flex items-center space-x-2 mb-3">
+        <input
+            type="text"
+            x-model="newText"
+            @keydown.enter.prevent="addTodo()"
+            placeholder="Add a new task..."
+            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-colors"
+            maxlength="200"
+            autocomplete="off"
+            aria-label="New todo text"
+        >
+        <button
+            type="submit"
+            @click.prevent="addTodo()"
+            class="px-3 py-1.5 bg-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg border border-amber-400/20 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors cursor-pointer"
+            aria-label="Add todo"
+        >
+            Add
+        </button>
+    </form>
+
+    <!-- Todo list -->
+    <div class="space-y-1" x-show="todos.length > 0">
+        <template x-for="item in sortedTodos()" :key="item.id">
+            <div
+                class="flex items-center space-x-2 px-2 py-1.5 rounded-lg glass-inner group transition-opacity"
+                :class="item.done ? 'opacity-40' : ''"
+            >
+                <button
+                    @click="toggleTodo(item.id)"
+                    class="flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors"
+                    :class="item.done ? 'bg-amber-500/30 border-amber-400' : 'border-gray-500 hover:border-amber-400'"
+                    :aria-label="item.done ? 'Mark as not done' : 'Mark as done'"
+                >
+                    <svg x-show="item.done" class="w-2.5 h-2.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
+                    </svg>
+                </button>
+                <span
+                    class="flex-1 text-xs truncate transition-colors"
+                    :class="item.done ? 'text-gray-500 line-through' : 'text-white'"
+                    x-text="item.text"
+                ></span>
+                <button
+                    @click="deleteTodo(item.id)"
+                    class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
+                    aria-label="Delete todo"
+                >
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="todos.length === 0" class="text-center py-3">
+        <p class="text-gray-500 text-xs">No tasks yet. Add one above!</p>
+    </div>
+</div>
+
+<script>
+function todoApp() {
+    return {
+        todos: {{ if .Todos }}[{{ range .Todos }}
+            { id: {{ .ID }}, text: {{ .Text | printf "%q" }}, done: {{ .Done }}, created_at: {{ .CreatedAt | printf "%q" }} },{{ end }}
+        ]{{ else }}[]{{ end }},
+        newText: '',
+        get doneCount() {
+            return this.todos.filter(function(t) { return t.done; }).length;
+        },
+        init() {
+            // Load latest from API on init
+            this.refresh();
+        },
+        refresh() {
+            var self = this;
+            fetch('/api/todos')
+                .then(function(r) { return r.json(); })
+                .then(function(data) { self.todos = data || []; })
+                .catch(function() {});
+        },
+        sortedTodos() {
+            return this.todos.slice().sort(function(a, b) {
+                if (a.done !== b.done) return a.done ? 1 : -1;
+                return a.id - b.id;
+            });
+        },
+        addTodo() {
+            var text = this.newText.trim();
+            if (!text) return;
+            var self = this;
+            fetch('/api/todos', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: text })
+            })
+            .then(function(r) {
+                if (!r.ok) throw new Error('API error');
+                return r.json();
+            })
+            .then(function(todo) {
+                self.todos.push(todo);
+                self.newText = '';
+            })
+            .catch(function(e) {
+                console.error('Failed to add todo:', e);
+            });
+        },
+        toggleTodo(id) {
+            var self = this;
+            fetch('/api/todos/' + id, { method: 'PUT' })
+                .then(function() {
+                    for (var i = 0; i < self.todos.length; i++) {
+                        if (self.todos[i].id === id) {
+                            self.todos[i].done = !self.todos[i].done;
+                            break;
+                        }
+                    }
+                })
+                .catch(function() {});
+        },
+        deleteTodo(id) {
+            var self = this;
+            fetch('/api/todos/' + id, { method: 'DELETE' })
+                .then(function() {
+                    self.todos = self.todos.filter(function(t) { return t.id !== id; });
+                })
+                .catch(function() {});
+        }
+    };
+}
+</script>
+{{ end }}

@@ -5,6 +5,9 @@ dashboard
 # Configuration files with secrets
 config.yaml
 
+# Persistent data files (todo list, etc.)
+data/
+
 # OS generated files
 .DS_Store
 .DS_Store?

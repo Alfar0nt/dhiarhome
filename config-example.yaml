@@ -70,3 +70,22 @@ widgets:
     enabled: false
     title: "Note"
     content: "Welcome to dhiarhome!"
+
+# ─── Network Monitoring ──────────────────────────────────────────────
+network:
+  enabled: false
+  show_speed: true            # Show real-time RX/TX speed
+  show_total_transfer: true   # Show cumulative total bytes
+  update_interval: 3          # Seconds between /proc/net/dev samples
+  mock: false                 # Use mock data for testing
+  interfaces:
+    - name: "eth0"            # Linux interface name (from /proc/net/dev)
+      label: "Primary"        # Human-friendly display label
+    - name: "wlan0"
+      label: "WiFi"
+
+# ─── To-Do List Widget ──────────────────────────────────────────────
+todos:
+  enabled: false               # Interactive to-do list on dashboard
+  file_path: "data/todos.json" # JSON file for persistent storage
+  title: "To-Do"               # Widget title
