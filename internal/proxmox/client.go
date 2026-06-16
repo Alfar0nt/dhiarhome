@@ -14,6 +14,12 @@ import (
 	"time"
 )
 
+type DiskInfo struct {
+	Mountpoint string
+	Total      int64
+	Used       int64
+}
+
 type NodeStatus struct {
 	CPU    float64 `json:"cpu"`
 	Memory struct {
@@ -21,12 +27,13 @@ type NodeStatus struct {
 		Used  int64 `json:"used"`
 		Free  int64 `json:"free"`
 	} `json:"memory"`
-	Disk struct {
+	RootFS struct {
 		Total int64 `json:"total"`
 		Used  int64 `json:"used"`
 	} `json:"rootfs"`
-	Uptime  int64   `json:"uptime"`
-	CPUInfo CPUInfo `json:"-"` // not from API, read from /proc/cpuinfo or mock
+	Disks   []DiskInfo `json:"-"`
+	Uptime  int64      `json:"uptime"`
+	CPUInfo CPUInfo    `json:"-"`
 }
 
 type CPUInfo struct {
@@ -74,7 +81,6 @@ func (c *Client) GetNodeStatus() (NodeStatus, error) {
 		return NodeStatus{}, err
 	}
 
-	// Set Proxmox API Token header
 	req.Header.Set("Authorization", fmt.Sprintf("PVEAPIToken=%s=%s", c.tokenID, c.tokenSecret))
 
 	resp, err := c.httpClient.Do(req)
@@ -95,7 +101,61 @@ func (c *Client) GetNodeStatus() (NodeStatus, error) {
 		return NodeStatus{}, err
 	}
 
-	return result.Data, nil
+	ns := result.Data
+	// Populate Disks from RootFS
+	ns.Disks = append(ns.Disks, DiskInfo{
+		Mountpoint: "/",
+		Total:      ns.RootFS.Total,
+		Used:       ns.RootFS.Used,
+	})
+
+	// Try to fetch additional disks from disk list endpoint
+	ns.fetchDiskList(c)
+
+	return ns, nil
+}
+
+func (ns *NodeStatus) fetchDiskList(c *Client) {
+	endpoint := fmt.Sprintf("%s/nodes/%s/disks/list", c.url, url.PathEscape(c.nodeName))
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("PVEAPIToken=%s=%s", c.tokenID, c.tokenSecret))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return
+	}
+
+	var diskResult struct {
+		Data []struct {
+			Devpath    string `json:"devpath"`
+			Used       int64  `json:"used,string"`
+			Size       int64  `json:"size,string"`
+			Mountpoint string `json:"mountpoint"`
+		} `json:"data"`
+	}
+
+	if err := json.NewDecoder(resp.Body).Decode(&diskResult); err != nil {
+		return
+	}
+
+	for _, d := range diskResult.Data {
+		if d.Mountpoint == "" || d.Mountpoint == "/" {
+			continue // root already added from RootFS
+		}
+		ns.Disks = append(ns.Disks, DiskInfo{
+			Mountpoint: d.Mountpoint,
+			Total:      d.Size,
+			Used:       d.Used,
+		})
+	}
 }
 
 func getMockStatus() NodeStatus {
@@ -107,13 +167,18 @@ func getMockStatus() NodeStatus {
 	status.Memory.Used = int64(float64(status.Memory.Total) * (0.4 + rand.Float64()*0.2)) // 40-60% used
 	status.Memory.Free = status.Memory.Total - status.Memory.Used
 
-	status.Disk.Total = 256 * 1024 * 1024 * 1024 // 256GB
-	status.Disk.Used = 120 * 1024 * 1024 * 1024  // ~120GB used
+	status.RootFS.Total = 256 * 1024 * 1024 * 1024 // 256GB
+	status.RootFS.Used = 120 * 1024 * 1024 * 1024  // ~120GB used
+	status.Disks = []DiskInfo{
+		{Mountpoint: "/", Total: 256 * 1024 * 1024 * 1024, Used: 120 * 1024 * 1024 * 1024},
+		{Mountpoint: "/mnt/storage", Total: 2 * 1024 * 1024 * 1024 * 1024, Used: 800 * 1024 * 1024 * 1024},
+		{Mountpoint: "/mnt/backup", Total: 4 * 1024 * 1024 * 1024 * 1024, Used: 1500 * 1024 * 1024 * 1024},
+	}
 
 	status.Uptime = 3600 * 24 * 7 // 7 days
 
 	status.CPUInfo = CPUInfo{
-		ModelName: "Mock CPU (Intel Core i7-12700K)",
+		ModelName: "Intel Core i7-12700K",
 		Cores:     12,
 		Threads:   20,
 	}
@@ -147,7 +212,7 @@ func ReadLocalCPUInfo() CPUInfo {
 		switch key {
 		case "model name":
 			if info.ModelName == "" {
-				info.ModelName = val
+				info.ModelName = cleanCPUName(val)
 			}
 		case "processor":
 			threads++
@@ -211,4 +276,37 @@ func ReadLocalCPUInfo() CPUInfo {
 	}
 
 	return info
+}
+
+func cleanCPUName(name string) string {
+	name = strings.TrimSpace(name)
+	// Remove vendor branding marks
+	name = strings.ReplaceAll(name, "(TM)", "")
+	name = strings.ReplaceAll(name, "(R)", "")
+	name = strings.ReplaceAll(name, "  ", " ")
+	// Strip verbose suffixes
+	suffixes := []string{
+		" with Radeon Graphics",
+		" with Iris Xe Graphics",
+		" with UHD Graphics",
+		" with HD Graphics",
+	}
+	for _, s := range suffixes {
+		if idx := strings.Index(name, s); idx >= 0 {
+			name = name[:idx]
+		}
+	}
+	// Strip " CPU @ ..." pattern
+	if idx := strings.Index(name, " CPU @"); idx >= 0 {
+		name = name[:idx]
+	}
+	// Strip "-Core Processor" pattern
+	if idx := strings.Index(name, "-Core Processor"); idx >= 0 {
+		name = name[:idx]
+	}
+	// Strip trailing " Processor"
+	if idx := strings.Index(name, " Processor"); idx >= 0 {
+		name = name[:idx]
+	}
+	return strings.TrimSpace(name)
 }

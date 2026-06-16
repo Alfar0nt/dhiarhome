@@ -16,7 +16,6 @@
         <input
             type="text"
             x-model="newText"
-            @keydown.enter.prevent="addTodo()"
             placeholder="Add a new task..."
             class="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-colors"
             maxlength="200"
@@ -25,7 +24,6 @@
         >
         <button
             type="submit"
-            @click.prevent="addTodo()"
             class="px-3 py-1.5 bg-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg border border-amber-400/20 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors cursor-pointer"
             aria-label="Add todo"
         >
@@ -115,7 +113,7 @@ function todoApp() {
                 return r.json();
             })
             .then(function(todo) {
-                self.todos.push(todo);
+                self.todos = self.todos.concat([todo]);
                 self.newText = '';
             })
             .catch(function(e) {
@@ -126,12 +124,12 @@ function todoApp() {
             var self = this;
             fetch('/api/todos/' + id, { method: 'PUT' })
                 .then(function() {
-                    for (var i = 0; i < self.todos.length; i++) {
-                        if (self.todos[i].id === id) {
-                            self.todos[i].done = !self.todos[i].done;
-                            break;
+                    self.todos = self.todos.map(function(t) {
+                        if (t.id === id) {
+                            return { id: t.id, text: t.text, done: !t.done, created_at: t.created_at, done_at: t.done_at };
                         }
-                    }
+                        return t;
+                    });
                 })
                 .catch(function() {});
         },

@@ -17,8 +17,11 @@
                 <div class="absolute inset-0 bg-blue-500/5 transition-opacity duration-300 opacity-0 group-hover:opacity-100"></div>
                 <div class="flex items-center justify-between">
                     <p class="metric-label">CPU Usage</p>
-                    {{ if and .CPUInfo.Cores .CPUInfo.Threads }}
-                    <span class="text-[10px] text-gray-500 tabular-nums">{{ .CPUInfo.Cores }}C / {{ .CPUInfo.Threads }}T</span>
+                    {{ if and .CPUInfo.ModelName .CPUInfo.Cores .CPUInfo.Threads }}
+                    <div class="text-right">
+                        <div class="text-[9px] text-gray-400 max-w-[140px] truncate leading-tight">{{ .CPUInfo.ModelName }}</div>
+                        <span class="text-[10px] text-gray-500 tabular-nums">{{ .CPUInfo.Cores }}C / {{ .CPUInfo.Threads }}T</span>
+                    </div>
                     {{ end }}
                 </div>
                 <div class="flex items-end justify-between mt-2">
@@ -43,15 +46,26 @@
             </div>
 
             <!-- Disk -->
-            <div class="glass-inner relative overflow-hidden p-4 group" role="meter" aria-label="Disk Usage" aria-valuenow="{{ printf "%.1f" (percent .Proxmox.Disk.Used .Proxmox.Disk.Total) }}" aria-valuemin="0" aria-valuemax="100">
+            <div class="glass-inner relative overflow-hidden p-4 group">
                 <div class="absolute inset-0 bg-purple-500/5 transition-opacity duration-300 opacity-0 group-hover:opacity-100"></div>
-                <p class="metric-label">Disk Usage (Root)</p>
-                <div class="flex items-end justify-between mt-2">
-                    <p class="text-3xl metric-value">{{ printf "%.1f" (percent .Proxmox.Disk.Used .Proxmox.Disk.Total) }}<span class="text-lg text-gray-500">%</span></p>
-                    <p class="text-xs text-gray-400 mb-1 tabular-nums">{{ printf "%.1f" (gb .Proxmox.Disk.Used) }}GB / {{ printf "%.1f" (gb .Proxmox.Disk.Total) }}GB</p>
-                </div>
-                <div class="w-full bg-gray-700/50 rounded-full h-1.5 mt-4" aria-hidden="true">
-                    <div class="bg-purple-500 h-1.5 rounded-full progress-bar" style="width: {{ percent .Proxmox.Disk.Used .Proxmox.Disk.Total }}%"></div>
+                <p class="metric-label mb-2">Disk Usage</p>
+                <div class="space-y-2.5 max-h-[210px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
+                    {{ range .Proxmox.Disks }}
+                    <div role="meter" aria-label="Disk {{ .Mountpoint }}" aria-valuenow="{{ printf "%.1f" (percent .Used .Total) }}" aria-valuemin="0" aria-valuemax="100">
+                        <div class="flex items-center justify-between mb-0.5">
+                            <span class="text-[11px] text-gray-400 truncate max-w-[90px]">{{ .Mountpoint }}</span>
+                            <span class="text-[10px] text-gray-500 tabular-nums">{{ printf "%.1f" (percent .Used .Total) }}%</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="flex-1 bg-gray-700/50 rounded-full h-1.5" aria-hidden="true">
+                                <div class="bg-purple-500 h-1.5 rounded-full progress-bar" style="width: {{ percent .Used .Total }}%"></div>
+                            </div>
+                            <span class="text-[10px] text-gray-500 tabular-nums whitespace-nowrap">{{ printf "%.1f" (gb .Used) }}G / {{ printf "%.1f" (gb .Total) }}G</span>
+                        </div>
+                    </div>
+                    {{ else }}
+                    <p class="text-gray-500 text-xs">No disk data.</p>
+                    {{ end }}
                 </div>
             </div>
 
@@ -79,7 +93,7 @@
                     <span class="text-white font-medium text-sm">{{ .Name }}</span>
                 </div>
                 <div class="flex items-center space-x-4">
-                    <span class="text-xs text-gray-400 tabular-nums">{{ .ResponseTime }}</span>
+                    <span class="text-xs text-gray-400 tabular-nums">{{ roundDur .ResponseTime }}</span>
                     {{ if eq .Status "Online" }}
                         <span class="px-2.5 py-1 text-[11px] font-semibold text-green-400 bg-green-400/10 rounded-full border border-green-400/20">Online</span>
                     {{ else }}

@@ -94,8 +94,8 @@
             </svg>
         </div>
         {{ range .Network }}
-        <div class="flex items-center justify-between {{ if gt (len $.Network) 1 }}mb-1.5 last:mb-0{{ end }}">
-            <div class="flex items-center space-x-2 min-w-0">
+        <div class="{{ if gt (len $.Network) 1 }}mb-1.5 last:mb-0{{ end }}">
+            <div class="flex items-center space-x-1.5 min-w-0">
                 {{ if eq .Status "up" }}
                     <span class="relative flex h-2 w-2 flex-shrink-0" aria-hidden="true">
                         <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
@@ -104,15 +104,18 @@
                 {{ else }}
                     <span class="relative inline-flex rounded-full h-2 w-2 bg-gray-500 flex-shrink-0" aria-hidden="true"></span>
                 {{ end }}
-                <span class="text-[11px] text-white font-medium truncate">{{ .Name }}</span>
+                <span class="text-[11px] text-white font-medium truncate leading-tight">{{ .Name }}</span>
+                {{ if .Label }}
+                <span class="text-[10px] text-gray-500 truncate leading-tight">({{ .Label }})</span>
+                {{ end }}
             </div>
             {{ if eq .Status "up" }}
-            <div class="flex items-center space-x-3 text-[10px] tabular-nums flex-shrink-0 ml-3">
+            <div class="flex items-center space-x-2.5 mt-0.5 ml-3.5 text-[10px] tabular-nums">
                 <span class="text-blue-400">↓ {{ .RxSpeed }}</span>
                 <span class="text-emerald-400">↑ {{ .TxSpeed }}</span>
             </div>
             {{ else }}
-            <span class="text-[10px] text-gray-500 ml-3">Down</span>
+            <span class="text-[10px] text-gray-500 ml-3.5">Down</span>
             {{ end }}
         </div>
         {{ end }}

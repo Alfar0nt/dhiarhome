@@ -151,35 +151,20 @@
         }
 
         /* ─── Base ──────────────────────────────────────────────────── */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+        }
         body {
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             background-color: #0f172a;
-            position: relative;
+        }
+        #scroll-container {
+            height: 100dvh;
+            overflow-y: auto;
             overflow-x: hidden;
+            -webkit-overflow-scrolling: touch;
         }
-
-        /* ─── Background Image Layer ───────────────────────────────── */
-        {{ if .BackgroundSrc }}
-        body::before {
-            content: '';
-            position: fixed;
-            inset: 0;
-            z-index: -2;
-            background-image: url('{{ .BackgroundSrc }}');
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            filter: blur(var(--bg-blur));
-            transform: scale(1.05); /* avoid blur edge artifacts */
-        }
-        body::after {
-            content: '';
-            position: fixed;
-            inset: 0;
-            z-index: -1;
-            background: rgba(15, 23, 42, var(--bg-overlay-opacity));
-        }
-        {{ end }}
 
         /* ─── Glassmorphism Card ────────────────────────────────────── */
         .glass-card {
@@ -281,8 +266,14 @@
         }
     </style>
 </head>
-<body class="text-gray-100 min-h-screen p-4 md:p-8 antialiased">
+<body class="text-gray-100 antialiased">
 
+    {{ if .BackgroundSrc }}
+    <div id="bg-image" aria-hidden="true" style="position: fixed; inset: 0; z-index: -2; background-image: url('{{ .BackgroundSrc }}'); background-size: cover; background-position: center; background-repeat: no-repeat; filter: blur(var(--bg-blur)); transform: scale(1.05); pointer-events: none;"></div>
+    <div id="bg-overlay" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; background: rgba(15, 23, 42, var(--bg-overlay-opacity)); pointer-events: none;"></div>
+    {{ end }}
+
+    <div id="scroll-container" class="p-4 md:p-8">
     <div class="max-w-6xl mx-auto">
 
         <!-- Header -->
@@ -321,6 +312,7 @@
             </div>
         </div>
 
+    </div>
     </div>
 
 </body>

@@ -123,6 +123,13 @@ func main() {
 		"gb": func(bytes int64) float64 {
 			return float64(bytes) / (1024 * 1024 * 1024)
 		},
+		"roundDur": func(d time.Duration) string {
+			ms := d.Seconds() * 1000
+			if ms < 1000 {
+				return fmt.Sprintf("%.0f ms", ms)
+			}
+			return fmt.Sprintf("%.2f s", d.Seconds())
+		},
 	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html"))
 
 	// Parse index.html as a template for dynamic appearance injection
