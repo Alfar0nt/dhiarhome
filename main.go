@@ -114,7 +114,7 @@ func doPoll() {
 	}
 }
 
-func indexHandler(w http.ResponseWriter, r *http.Request) {
+func indexHandler(w http.ResponseWriter, _ *http.Request) {
 	// Determine background source
 	bgSrc := ""
 	if appConfig.Appearance.BackgroundURL != "" {
@@ -150,7 +150,7 @@ func indexHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func backgroundHandler(w http.ResponseWriter, r *http.Request) {
+func backgroundHandler(w http.ResponseWriter, _ *http.Request) {
 	bgSrc := ""
 	if appConfig.Appearance.BackgroundURL != "" {
 		bgSrc = appConfig.Appearance.BackgroundURL
@@ -187,7 +187,7 @@ func backgroundServeHandler(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
-func statusHandler(w http.ResponseWriter, r *http.Request) {
+func statusHandler(w http.ResponseWriter, _ *http.Request) {
 	// Fetch Proxmox status
 	pxStatus, err := pxClient.GetNodeStatus()
 	if err != nil {
