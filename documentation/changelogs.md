@@ -4,14 +4,77 @@ All notable changes to this project are documented in this file.
 
 ---
 
-## [Unreleased] - Pre-Feature Roadmap
+## [0.8.2] - 2026-06-17 - Media Services Integration, Widget Row Redesign, Live Badge
 
-### Planned
-- Custom bookmarks and web links with icon support
-- Service integration framework (Plex, Radarr, Sonarr, Portainer)
-- Generic HTTP API widget for custom services
+### Added
+- **Media Services monitoring** (`internal/mediaservices/client.go`):
+  - Sonarr: fetches series count and wanted count via `/api/v3/series` and `/api/v3/wanted/missing`
+  - Radarr: fetches movie count and wanted count via `/api/v3/movie` and `/api/v3/wanted/missing`
+  - Overseerr: fetches pending request count and available media count via `/api/v1/request` and `/api/v1/media`
+  - All services use `X-Api-Key` header authentication with 5s timeout and graceful failure (`Online: false`)
+  - Polled every 30 seconds via `pollMediaServices()` goroutine with mutex-protected shared state
+  - `MockStats()` provides hardcoded test data when `proxmox.mock: true` and no services are configured
+- **Live indicator pill badge**: "Live" text now wrapped in `px-3 py-1.5 rounded-full glass-inner` for consistent glass aesthetic
+- **Widget card min-height + bigger text**: All top-row widgets set to `min-h-[190px]` with increased font sizes (time `text-2xl`, hostname `text-base`, network labels `text-xs`)
 
-See [to-do.md](to-do.md) for the full 33-step implementation plan.
+### Changed
+- **Todo widget moved to widget row**: Replaces the Welcome (custom_text) card as the leftmost widget in the top row grid. Removed from standalone position between widget row and main grid.
+- **Todo input overflow fix**: Added `min-w-0` to input to prevent native element intrinsic width from overflowing on mobile
+- **Todo scrollable list**: Only the todo items list scrolls (`flex-1 min-h-0 overflow-y-auto max-h-[72px]`); the header and input field stay fixed. Card uses `flex flex-col h-full` to fill the grid row.
+- **Todo limit**: Scroll area capped at `max-h-[72px]` (~2 visible items); 3rd+ items require scrolling
+- **custom_text removed** from `combineWidgets()` in `main.go` — no longer rendered in the widget list
+- **Inline Alpine.js component**: Todo `x-data` is now a JS object literal instead of `x-data="todoApp()"`, avoiding the script-evaluation issue in `data-preserve` divs during merge-swap
+- **Widget text sizes increased**: Weather/time (time `text-2xl`, temp `text-xl`), system (hostname `text-base`, values `text-sm`), network (label `text-xs`, speeds `text-xs`, dot `h-3 w-3`)
+- **Widget cards now use `flex flex-col justify-between`**: Weather/time, system info, and network cards stretch content to fill the card height
+
+### Files Created
+- `internal/mediaservices/client.go` — Sonarr/Radarr/Overseerr API clients
+- `templates/mediaservices.html` — Media management card template
+
+### Files Modified
+- `internal/config/config.go` — `MediaServices []MediaServiceConfig` config field
+- `main.go` — `mediaStats` + mutex, `pollMediaServices()` goroutine, `combineWidgets()` no longer includes custom_text
+- `templates/todo.html` — Inline x-data, scrollable list with `max-h-[72px]`, `min-w-0` on input, `min-h-[190px]`
+- `templates/widgets/widgets.html` — Todo rendered first in grid, removed custom_text section, bigger text/icons, `min-h-[190px]`
+- `templates/status.html` — Removed standalone `{{ template "todo.html" . }}`, media services in grid
+- `static/index.html` — Live indicator with `glass-inner` pill, adjusted styles
+- `config-example.yaml` — Added `media_services` section
+
+---
+
+## [0.8.1] - 2026-06-17 - Widget Scroll & Sizing Fixes
+
+### Fixed
+- **Todo 3rd item disappearing**: Scroll area capped at `max-h-[72px]` (~2 visible items). Items beyond the 2nd require scrolling (usable scrollbar). Previously the `flex-1` container would expand to match content, but the grid row height constraint could clip items.
+- **Mobile input overflow**: Added `min-w-0` to the todo `<input>` with `flex-1` — native input elements have an intrinsic minimum width that prevents shrinking in tight flex layouts.
+- **Inconsistent widget heights**: All top-row widget cards now share `min-h-[190px]`. Grid's `align-items: stretch` makes same-row cards match.
+
+### Changed
+- `min-h-[160px]` → `min-h-[190px]` on all widget cards (weather, system, network)
+- Todo card: `min-h-[190px]` added back (was removed), scroll area `max-h-[72px]`
+- Weather/time, system, network cards: increased font sizes to fill the taller cards
+
+---
+
+## [0.8.0] - 2026-06-17 - Widget Row & Media Services
+
+### Added
+- **Media Services monitoring** (Sonarr, Radarr, Overseerr) with clickable WebUI links and stat boxes
+- **Media Management card** in main grid with per-service status indicators
+
+### Changed
+- **Todo widget moved to widget row** replacing the Welcome (custom_text) card — leftmost position in the top 4-card grid
+- **custom_text removed** from `combineWidgets()` — no longer rendered
+- **Standalone todo** removed from `status.html` (was between widget row and main grid)
+- **Desktop width**: `max-w-6xl mx-auto lg:max-w-none` — no width constraint on desktop, fills screen
+- **Card min-heights**: `md:min-h-[320px]` on Monitored Services (col-span-2) and Docker Containers (col-span-1)
+- **Media services** inside main grid (after Proxmox, col-span-3) with proper `gap-6`
+- **Inline Alpine x-data**: Todo component defined as JS object literal instead of external `todoApp()` function (scripts inside `data-preserve` divs are never executed by merge-swap)
+- **Optimistic updates**: Todo add/toggle/delete immediately reflect in UI, API syncs in background
+
+### Fixed
+- **`:key` on `<template>` element**: Moved to child `<div>` — Alpine.js 3 requires `:key` on the first child, not on `<template>` itself. This was the root cause of todo add not working.
+- **Race condition in todo add**: `init()`→`refresh()` (GET /api/todos) was overwriting POST response. Removed `init()`/`refresh()` entirely — data comes from Go template, no race condition.
 
 ---
 
@@ -538,6 +601,9 @@ personalProject-Dashboard/
 | 0.7.0 | 2026-06-16 | Interactive to-do list (Alpine.js), CPU core/thread display |
 | 0.7.1 | 2026-06-16 | Todo add bug fix (data-preserve), compact redesign |
 | 0.7.2 | 2026-06-17 | Todo reactivity fix, CPU model name, multi-disk support, mobile bg scroll fix, network card vertical layout, response time formatting |
-| 0.8.0 | Planned | Bookmarks and custom links |
-| 0.9.0 | Planned | Service integration framework |
+| 0.8.0 | 2026-06-17 | Media services (Sonarr/Radarr/Overseerr), todo moved to widget row, desktop layout, inline Alpine x-data, optimistic todo updates |
+| 0.8.1 | 2026-06-17 | Widget scroll fix (max-h 72px), mobile input overflow fix (min-w-0), consistent min-h-[190px], bigger widget text/icons |
+| 0.8.2 | 2026-06-17 | Live indicator glass pill, media services polling goroutine, Flex layout for widget cards, responsive sizing |
+| 0.9.0 | Planned | Bookmarks and custom links |
+| 0.10.0 | Planned | Service integration framework |
 | 1.0.0 | Planned | First stable release with all planned features |

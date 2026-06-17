@@ -40,17 +40,30 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - No real credentials required for development
 - Random varying metrics for realistic testing
 
-### 5. Utility Widgets
-- **Weather + Time** — Combined into a single compact card: live clock at top, weather condition below a divider. Mock weather cached for 5 minutes to prevent randomization on every HTMX poll
+### 5. Utility Widgets & Interactive Features
+- **To-Do List** — Interactive Alpine.js widget with add, toggle, delete. Persisted to `data/todos.json`. Optimistic updates via `fetch()` API calls. Scrollable list capped at ~2 visible items (`max-h-[72px]`). Inline `x-data` definition (no external function dependency).
+- **Weather + Time** — Combined into a single compact card: live clock at top (client-side JS updates every second), weather condition below a divider. Mock weather cached for 5 minutes.
 - **System Info** — Hostname, OS name, system uptime, Go runtime stats (goroutines, memory) in compact card
-- **Custom Text** — Configurable title and content, HTML-sanitized, rendered as left-most compact card
 - **Network Summary** — Compact card showing per-interface status with live RX/TX speeds
 - **Standalone fallbacks** — Weather and DateTime render individually if only one is enabled
-- **Mobile layout** — 2-column grid with 4 widgets (perfect 2x2): custom text, weather+time, system info, network
-- **Desktop layout** — 4-column row: custom text, weather+time, system info, network
+- **Mobile layout** — 2-column grid with 4 widgets (perfect 2x2): todo, weather+time, system info, network
+- **Desktop layout** — 4-column row: todo, weather+time, system info, network
+- All cards share `min-h-[190px]` for consistent row height. Grid's `align-items: stretch` matches same-row cards.
+- Increased font sizes (time `text-2xl`, hostname `text-base`) and `flex flex-col justify-between` to fill cards
 - Glassmorphism card styling matching the dashboard theme
 
-### 6. Network Monitoring
+### 6. Media Services Monitoring
+- **Sonarr** — Fetches series count (`GET /api/v3/series`) and wanted count (`GET /api/v3/wanted/missing`)
+- **Radarr** — Fetches movie count (`GET /api/v3/movie`) and wanted count (`GET /api/v3/wanted/missing`)
+- **Overseerr** — Fetches pending request count (`GET /api/v1/request?take=1&filter=pending`) and available media count (`GET /api/v1/media/count`)
+- All use `X-Api-Key` header authentication with 5s HTTP timeout
+- Graceful failure: `Online: false` when API is unreachable, config errors, or non-2xx response
+- Mock mode (`MockStats()`) returns hardcoded test data when `proxmox.mock: true` and no services configured
+- Polled every 30 seconds via `pollMediaServices()` goroutine with mutex-protected shared state
+- Rendered as a clickable card in the main grid (col-span-3) with per-service stat boxes
+- Each service shows name, status dot (green pulsing / red), WebUI link, and type-specific stats
+
+### 7. Network Monitoring
 - **`/proc/net/dev` Parsing** — Reads Linux kernel interface byte counts directly
 - **Speed Calculation** — Two-sample rate with moving average smoothing (last 3 samples)
 - **Human-Readable Formatting** — Speeds: b/s, Kbit/s, Mbit/s, Gbit/s; Totals: KB, MB, GB, TB
@@ -102,16 +115,18 @@ dhiarhome/
 │   ├── cache/
 │   │   └── history.go          # In-memory service state cache (linked list)
 │   ├── config/
-│   │   └── config.go           # YAML configuration loader + AppearanceConfig
+│   │   └── config.go           # YAML configuration loader + all config structs
 │   ├── docker/
 │   │   └── client.go           # Docker API client
+│   ├── mediaservices/
+│   │   └── client.go           # Sonarr/Radarr/Overseerr API clients
 │   ├── monitor/
 │   │   └── http.go             # HTTP service health checker
-│   ├── proxmox/
-│   │   └── client.go           # Proxmox API client
 │   ├── network/
 │   │   ├── types.go            # InterfaceStats struct + rawSample type
 │   │   └── monitor.go          # /proc/net/dev parser, speed calc, mock mode
+│   ├── proxmox/
+│   │   └── client.go           # Proxmox API client
 │   ├── todo/
 │   │   └── store.go            # Persistent to-do store (JSON file)
 │   └── widgets/
@@ -129,6 +144,7 @@ dhiarhome/
 │   ├── status.html             # Server-side rendered status template
 │   ├── network.html            # Network interface cards template
 │   ├── todo.html               # Interactive to-do list template (Alpine.js)
+│   ├── mediaservices.html      # Media management card template
 │   └── widgets/
 │       └── widgets.html        # Widget rendering template (all types)
 │
@@ -256,6 +272,12 @@ dhiarhome/
 - `PUT /api/todos/{id}` — Toggles todo done state
 - `DELETE /api/todos/{id}` — Deletes a todo
 
+#### Background Goroutines
+- Service monitor polls every 10 seconds (response times, online/offline status)
+- Network monitor samples `/proc/net/dev` every 3 seconds (RX/TX rates)
+- Media services poll every 30 seconds (Sonarr/Radarr/Overseerr stats)
+- HTMX auto-refresh polls `/status` every 5 seconds (DOM diff preserves elements)
+
 ---
 
 ## Configuration Reference
@@ -356,6 +378,25 @@ todos:
 ```
 
 > **Note:** Todo data is persisted to the specified JSON file and survives server restarts. The `data/` directory is created automatically and gitignored.
+
+### Media Services Section
+```yaml
+media_services:
+  - name: "Sonarr"
+    url: "http://192.168.1.100:8989"
+    api_key: "YOUR_SONARR_API_KEY"
+    webui: "http://192.168.1.100:8989"
+  - name: "Radarr"
+    url: "http://192.168.1.100:7878"
+    api_key: "YOUR_RADARR_API_KEY"
+    webui: "http://192.168.1.100:7878"
+  - name: "Overseerr"
+    url: "http://192.168.1.100:5055"
+    api_key: "YOUR_OVERSEERR_API_KEY"
+    webui: "http://192.168.1.100:5055"
+```
+
+> **Note:** Each service requires `name`, `url` (API endpoint), `api_key`, and `webui` (browser-accessible URL). Services are polled every 30 seconds. Mock stats are automatically shown when `proxmox.mock: true` and no `media_services` are configured.
 
 ---
 

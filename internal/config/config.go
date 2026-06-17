@@ -7,13 +7,21 @@ import (
 )
 
 type Config struct {
-	Proxmox    ProxmoxConfig    `yaml:"proxmox"`
-	Docker     DockerConfig     `yaml:"docker"`
-	Services   []ServiceConfig  `yaml:"services"`
-	Appearance AppearanceConfig `yaml:"appearance"`
-	Widgets    WidgetsConfig    `yaml:"widgets"`
-	Network    NetworkConfig    `yaml:"network"`
-	Todos      TodoConfig       `yaml:"todos"`
+	Proxmox       ProxmoxConfig            `yaml:"proxmox"`
+	Docker        DockerConfig             `yaml:"docker"`
+	Services      []ServiceConfig          `yaml:"services"`
+	Appearance    AppearanceConfig         `yaml:"appearance"`
+	Widgets       WidgetsConfig            `yaml:"widgets"`
+	Network       NetworkConfig            `yaml:"network"`
+	Todos         TodoConfig               `yaml:"todos"`
+	MediaServices []MediaServiceConfig     `yaml:"media_services"`
+}
+
+type MediaServiceConfig struct {
+	Name   string `yaml:"name"`    // "Sonarr", "Radarr", "Overseerr"
+	URL    string `yaml:"url"`     // API base URL (e.g. http://192.168.1.100:8989)
+	APIKey string `yaml:"api_key"` // API key
+	WebUI  string `yaml:"webui"`   // Web UI URL (e.g. http://192.168.1.100:8989)
 }
 
 type AppearanceConfig struct {

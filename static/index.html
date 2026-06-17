@@ -274,7 +274,7 @@
     {{ end }}
 
     <div id="scroll-container" class="p-4 md:p-8">
-    <div class="max-w-6xl mx-auto">
+    <div class="max-w-6xl mx-auto md:max-w-none">
 
         <!-- Header -->
         <header class="mb-8 flex items-center justify-between">
@@ -285,7 +285,7 @@
                 <p class="mt-2 text-sm text-gray-400 tracking-normal">Lightweight homelab monitoring dashboard</p>
             </div>
 
-            <div class="flex items-center space-x-2" role="status" aria-label="Dashboard is live, data refreshes every 5 seconds">
+            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-full glass-inner" role="status" aria-label="Dashboard is live, data refreshes every 5 seconds">
                 <span class="relative flex h-3 w-3" aria-hidden="true">
                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                     <span class="live-dot relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>

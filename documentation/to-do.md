@@ -348,13 +348,13 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 - [ ] Test: connect to real Plex instance (if available), verify parsing
 
 ### Step 5.4 — Implement Radarr/Sonarr Widgets
-- [ ] Create `internal/services/radarr.go` and `internal/services/sonarr.go`
-- [ ] Use Radarr/Sonarr APIs:
+- [x] Create `internal/mediaservices/client.go` — Radarr, Sonarr, and Overseerr API clients
+- [x] Use Radarr/Sonarr APIs:
   - Endpoint: `{url}/api/v3/movie` (Radarr) or `{url}/api/v3/series` (Sonarr)
   - Auth: `X-Api-Key` header
   - Parse: wanted count, total items, queue status
-- [ ] Create templates showing: wanted/total counts, queue info
-- [ ] Test: verify API parsing with sample responses
+- [x] Create `templates/mediaservices.html` showing: wanted/total counts per service
+- [x] Test: verify API parsing with sample responses
 
 ### Step 5.5 — Implement Portainer Widget
 - [ ] Create `internal/services/portainer.go`
@@ -366,6 +366,11 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 - [ ] Test: verify data display
 
 ### Step 5.6 — Integrate Service Widgets into Dashboard
+- [x] Add `MediaServiceConfig` to config (under `media_services`)
+- [x] Initialize media service polling in `main.go` (30s goroutine)
+- [x] Create `templates/mediaservices.html` with card grid
+- [x] Each card: icon, name, status badge, key metrics per service type
+- [x] Add to dashboard layout in main grid (col-span-3)
 - [ ] Add `ServiceWidgetConfig` to config:
   ```go
   type ServiceWidgetConfig struct {
@@ -490,6 +495,6 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 2. Utility Widgets | 6 | 6 | 0 |
 | 3. Network Monitoring | 5 | 5 | 0 |
 | 4. Bookmarks & Links | 4 | 0 | 4 |
-| 5. Service Widgets | 6 | 0 | 6 |
+| 5. Service Widgets | 6 | 3 | 3 |
 | 6. Polish & Docs | 6 | 0 | 6 |
-| **Total** | **33** | **17** | **16** |
+| **Total** | **33** | **20** | **13** |

@@ -84,6 +84,21 @@ network:
     - name: "wlan0"
       label: "WiFi"
 
+# ─── Media Services (Sonarr / Radarr / Overseerr) ────────────────
+media_services:
+  # - name: "Sonarr"
+  #   url: "http://192.168.1.100:8989"
+  #   api_key: "YOUR-SONARR-API-KEY"
+  #   webui: "http://192.168.1.100:8989"
+  # - name: "Radarr"
+  #   url: "http://192.168.1.100:7878"
+  #   api_key: "YOUR-RADARR-API-KEY"
+  #   webui: "http://192.168.1.100:7878"
+  # - name: "Overseerr"
+  #   url: "http://192.168.1.100:5055"
+  #   api_key: "YOUR-OVERSEERR-API-KEY"
+  #   webui: "http://192.168.1.100:5055"
+
 # ─── To-Do List Widget ──────────────────────────────────────────────
 todos:
   enabled: false               # Interactive to-do list on dashboard

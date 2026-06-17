@@ -903,9 +903,113 @@ This gives each interface more horizontal room for the name while keeping speeds
 
 ---
 
-## Session 22: Response Time Format Cleanup
+## Session 23: Media Services Integration (Sonarr/Radarr/Overseerr)
 
 **Date:** June 17, 2026
+
+### User Request
+```
+I want you to add 3 new service monitors and links to the WebUI of those services. The target services are: Sonarr, Radarr, Overseerr. 
+For each of those services, fetch specific statistics from their respective APIs...
+All services are at ports: Sonarr :8989, Radarr :7878, Overseerr :5055.
+```
+
+### Changes
+1. **`internal/mediaservices/client.go`**: Created media services client package with Sonarr, Radarr, and Overseerr API clients
+2. **`internal/config/config.go`**: Added `MediaServices []MediaServiceConfig` config struct
+3. **`main.go`**: Added `mediaStats` + mutex, `pollMediaServices()` goroutine (30s interval), `DashboardData.MediaServices` field
+4. **`templates/mediaservices.html`**: Clickable card per service with WebUI link, stat boxes for counts
+5. **`config-example.yaml`**: Added commented `media_services` section
+6. Mock stats shown when `proxmox.mock: true` and no services configured
+
+---
+
+## Session 24: Layout Changes — Desktop Width, Min-Heights, Todo Position
+
+**Date:** June 17, 2026
+
+### User Requests (cumulative)
+- Make the container wider on desktop, no width constraint
+- Add min-height to Monitored Services and Docker containers for desktop
+- Remove the todo widget from between the widgets and main grid. Put it in the widget row.
+- Replace the welcome/custom_text widget with the todo widget
+
+### Changes
+1. **Desktop width**: `max-w-6xl mx-auto lg:max-w-none` in `static/index.html`
+2. **Card min-heights**: `md:min-h-[320px]` on Monitored Services (col-span-2) and Docker Containers (col-span-1) in `templates/status.html`
+3. **Todo moved to widget row**: In `widgets.html`, todo rendered as first item in grid before the range loop; `combineWidgets()` in `main.go` no longer includes custom_text; `status.html` removes standalone `{{ template "todo.html" . }}`
+
+---
+
+## Session 25: Todo Widget Card Height Consistency & Scroll
+
+**Date:** June 17, 2026
+
+### User Requests
+- Fix inconsistent widget card sizes (todo, time, system, network)
+- Make todo scrollable (only the list, not the input)
+- Set visible limit to ~2 items before scrolling
+- Make other widgets a bit bigger to match
+
+### Changes
+1. `templates/todo.html`: Card `h-full min-h-[190px] flex flex-col`, scroll container `flex-1 min-h-0 overflow-y-auto max-h-[72px]`
+2. `templates/widgets/widgets.html`: All cards `min-h-[160px]` → `min-h-[190px]`
+3. Added `flex flex-col justify-between` to weather/time, system, and network cards
+
+---
+
+## Session 26: Mobile Input Fix & Bigger Widget Text
+
+**Date:** June 17, 2026
+
+### User Requests
+- Fix mobile todo input expanding beyond the widget
+- Make widget text/logo bigger to fill the taller cards
+
+### Changes
+1. `templates/todo.html`: Added `min-w-0` to input (`flex-1 min-w-0`)
+2. `templates/widgets/widgets.html`: Increased font sizes across all widgets
+
+| Widget | Before | After |
+|---|---|---|
+| Weather/Time | Time `text-xl`, icon `text-lg`, temp `text-lg`, wind `text-xs`, cond `text-[11px]` | Time `text-2xl`, icon `text-xl`, temp `text-xl`, wind `text-sm`, cond `text-xs` |
+| System | Label `text-[10px]`, icon `text-lg`, hostname `text-sm`, values `text-xs` | Label `text-xs`, icon `text-xl`, hostname `text-base`, values `text-sm` |
+| Network | Label `text-[10px]`, icon SVG `w-4`, names `text-[11px]`, speeds `text-[10px]`, dots `h-2` | Label `text-xs`, icon SVG `w-5`, names `text-xs`, speeds `text-xs`, dots `h-3` |
+
+---
+
+## Session 27: Live Indicator Glass Pill
+
+**Date:** June 17, 2026
+
+### User Request
+```
+add a background/widget/transparent background like any other, for the current "live" text on the top right section, so it has better visibility
+```
+
+### Changes
+- `static/index.html`: Wrapped Live indicator in `px-3 py-1.5 rounded-full glass-inner` pill badge
+
+---
+
+## Session 28: Documentation Update
+
+**Date:** June 17, 2026
+
+### User Request
+```
+write all of our changes and the prompt-history in the documentation folder, including all of the current changes
+```
+
+### Changes
+- `documentation/changelogs.md`: Added 0.8.0, 0.8.1, 0.8.2 entries, updated version history table
+- `documentation/prompt-history.md`: Added sessions 23-28
+- `documentation/docs.md`: Updated project structure, feature descriptions, config reference
+- `documentation/to-do.md`: Updated progress tracker and added media services step
+
+---
+
+## Notes
 
 ### User Request
 ```

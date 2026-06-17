@@ -11,11 +11,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"dhiarhome/internal/cache"
 	"dhiarhome/internal/config"
 	"dhiarhome/internal/docker"
+	"dhiarhome/internal/mediaservices"
 	"dhiarhome/internal/monitor"
 	"dhiarhome/internal/network"
 	"dhiarhome/internal/proxmox"
@@ -24,32 +26,35 @@ import (
 )
 
 type DashboardData struct {
-	Proxmox      proxmox.NodeStatus
-	CPUInfo      proxmox.CPUInfo
-	Containers   []docker.Container
-	Services     []cache.ServiceState
-	Widgets      []widgets.WidgetData
-	DateTime24h  bool
-	DateTimezone string
-	Network      []network.InterfaceStats
-	NetShowSpeed bool
-	NetShowTotal bool
-	Todos        []todo.Todo
-	TodoEnabled  bool
-	TodoTitle    string
+	Proxmox       proxmox.NodeStatus
+	CPUInfo       proxmox.CPUInfo
+	Containers    []docker.Container
+	Services      []cache.ServiceState
+	Widgets       []widgets.WidgetData
+	DateTime24h   bool
+	DateTimezone  string
+	Network       []network.InterfaceStats
+	NetShowSpeed  bool
+	NetShowTotal  bool
+	Todos         []todo.Todo
+	TodoEnabled   bool
+	TodoTitle     string
+	MediaServices []mediaservices.MediaServiceStats
 }
 
 var (
-	appConfig      *config.Config
-	historyCache   *cache.HistoryCache
-	pxClient       *proxmox.Client
-	dkClient       *docker.Client
-	tmpl           *template.Template
-	indexTmpl      *template.Template
-	widgetRegistry *widgets.Registry
-	netMonitor     *network.Monitor
-	todoStore      *todo.Store
-	localCPUInfo   proxmox.CPUInfo
+	appConfig       *config.Config
+	historyCache    *cache.HistoryCache
+	pxClient        *proxmox.Client
+	dkClient        *docker.Client
+	tmpl            *template.Template
+	indexTmpl       *template.Template
+	widgetRegistry  *widgets.Registry
+	netMonitor      *network.Monitor
+	todoStore       *todo.Store
+	localCPUInfo    proxmox.CPUInfo
+	mediaStats      []mediaservices.MediaServiceStats
+	mediaStatsMu    sync.RWMutex
 )
 
 func main() {
@@ -130,13 +135,18 @@ func main() {
 			}
 			return fmt.Sprintf("%.2f s", d.Seconds())
 		},
-	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html"))
+	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html", "templates/mediaservices.html"))
 
 	// Parse index.html as a template for dynamic appearance injection
 	indexTmpl = template.Must(template.New("index.html").ParseFiles("static/index.html"))
 
 	// Background poller for services
 	go pollServices()
+
+	// Background poller for media services
+	if len(appConfig.MediaServices) > 0 {
+		go pollMediaServices()
+	}
 
 	// Serve static files but handle index.html as a template
 	fs := http.FileServer(http.Dir("static"))
@@ -159,6 +169,33 @@ func main() {
 
 	log.Println("Server listening on :8080")
 	log.Fatal(http.ListenAndServe(":8080", nil))
+}
+
+func pollMediaServices() {
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	doPollMedia()
+
+	for range ticker.C {
+		doPollMedia()
+	}
+}
+
+func doPollMedia() {
+	var stats []mediaservices.MediaServiceStats
+	for _, svc := range appConfig.MediaServices {
+		ms := mediaservices.MediaService{
+			Name:   svc.Name,
+			URL:    svc.URL,
+			APIKey: svc.APIKey,
+			WebUI:  svc.WebUI,
+		}
+		stats = append(stats, mediaservices.FetchStats(ms))
+	}
+	mediaStatsMu.Lock()
+	mediaStats = stats
+	mediaStatsMu.Unlock()
 }
 
 func pollServices() {
@@ -320,6 +357,21 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 		todos = todoStore.GetAll()
 	}
 
+	// Get media service stats
+	var medias []mediaservices.MediaServiceStats
+	mediaStatsMu.RLock()
+	if len(mediaStats) > 0 {
+		medias = make([]mediaservices.MediaServiceStats, len(mediaStats))
+		copy(medias, mediaStats)
+	} else if len(appConfig.MediaServices) > 0 {
+		// Services configured but no data yet (first poll)
+		medias = mediaservices.MockStats()
+	} else if appConfig.Proxmox.Mock {
+		// Mock mode: show demo data
+		medias = mediaservices.MockStats()
+	}
+	mediaStatsMu.RUnlock()
+
 	data := DashboardData{
 		Proxmox:      pxStatus,
 		CPUInfo:      cpuInfo,
@@ -331,9 +383,10 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 		Network:      netStats,
 		NetShowSpeed: appConfig.Network.ShowSpeed,
 		NetShowTotal: appConfig.Network.ShowTotal,
-		Todos:        todos,
-		TodoEnabled:  appConfig.Todos.Enabled,
-		TodoTitle:    appConfig.Todos.Title,
+		Todos:         todos,
+		TodoEnabled:   appConfig.Todos.Enabled,
+		TodoTitle:     appConfig.Todos.Title,
+		MediaServices: medias,
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {
@@ -342,9 +395,9 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 }
 
 // combineWidgets merges weather + datetime into a single "weather_time" widget
-// and reorders so custom_text comes first, then weather_time, then system_info.
+// and reorders so weather_time comes first, then system_info.
 func combineWidgets(raw []widgets.WidgetData) []widgets.WidgetData {
-	var weather, datetime, sysinfo, custom *widgets.WidgetData
+	var weather, datetime, sysinfo *widgets.WidgetData
 	var others []widgets.WidgetData
 
 	for i := range raw {
@@ -356,7 +409,7 @@ func combineWidgets(raw []widgets.WidgetData) []widgets.WidgetData {
 		case "system_info":
 			sysinfo = &raw[i]
 		case "custom_text":
-			custom = &raw[i]
+			// custom_text replaced by todo widget in the template
 		default:
 			others = append(others, raw[i])
 		}
@@ -364,12 +417,7 @@ func combineWidgets(raw []widgets.WidgetData) []widgets.WidgetData {
 
 	var result []widgets.WidgetData
 
-	// 1. Custom text (left side, compact)
-	if custom != nil {
-		result = append(result, *custom)
-	}
-
-	// 2. Combined weather + time card
+	// 1. Combined weather + time card
 	if weather != nil && datetime != nil {
 		combined := widgets.WidgetData{
 			Type:  "weather_time",
@@ -396,12 +444,12 @@ func combineWidgets(raw []widgets.WidgetData) []widgets.WidgetData {
 		}
 	}
 
-	// 3. System info
+	// 2. System info
 	if sysinfo != nil {
 		result = append(result, *sysinfo)
 	}
 
-	// 4. Any other widgets
+	// 3. Any other widgets
 	result = append(result, others...)
 
 	return result
