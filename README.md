@@ -1,6 +1,6 @@
 # dhiarhome
 
-A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, and web services. Built with Go, HTMX, and Tailwind CSS.
+A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, web services, media services (Sonarr/Radarr/Overseerr), and network interfaces. Built with Go, HTMX, Alpine.js, and Tailwind CSS.
 
 ![Dashboard Screenshot](Screenshot.png)
 
@@ -8,38 +8,48 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 
 ## What is dhiarhome?
 
-**dhiarhome** is an ultra-lightweight web dashboard designed for monitoring homelab servers. It provides real-time visibility into:
+**dhiarhome** is an ultra-lightweight web dashboard for homelab servers. Real-time visibility into:
 
-- **Proxmox VE** server metrics (CPU, RAM, disk usage)
-- **Docker containers** status and state
-- **Web services** uptime with response times
-- Auto-refreshing dashboard (no manual reload needed)
-- Mock mode for testing without real credentials
-- Single binary deployment (~10MB)
-
-This is my personal learning project for homelab monitoring—simple, fast, and easy to customize.
+- **Proxmox VE** — CPU, RAM, multi-disk usage, CPU model/core/thread info
+- **Docker containers** — status and state
+- **Web services** — uptime with response times
+- **Media services** — Sonarr/Radarr/Overseerr stats with WebUI links
+- **Network interfaces** — RX/TX speeds per interface
+- **Interactive to-do list** — add, toggle, delete (persisted to JSON)
+- **Weather + time** — combined card with live clock, Open-Meteo weather
+- **System info** — hostname, OS, uptime, Go runtime stats
+- **Glassmorphism UI** — transparent cards, custom backgrounds, live indicator
+- **Auto-refreshing** — HTMX polling with DOM diff (no flicker)
+- **Mock mode** — test without real credentials
+- **Single binary** — ~15MB, zero database
 
 ---
 
 ## Features
 
-- Real-time Proxmox server monitoring (CPU, memory, disk)
-- Docker container status tracking
-- Web service health checks with response times
-- Auto-refreshing UI using HTMX (5-second polling)
-- Configuration-driven (no code changes needed)
-- Mock mode for UI testing
-- Dark mode design with Tailwind CSS
-- Lightweight: ~10-20MB RAM, <1% CPU
+- **Proxmox** — CPU model + cores/threads, RAM, multi-disk, uptime
+- **Docker** — all containers with up/down status
+- **Web services** — health checks with response times
+- **Media services** — Sonarr/Radarr/Overseerr stats, clickable WebUI
+- **Network** — per-interface RX/TX speeds (via /proc/net/dev)
+- **To-do list** — Alpine.js interactive, persisted to JSON
+- **Weather + time** — live clock, Open-Meteo forecast, timezone support
+- **System info** — hostname, OS, uptime, Go memory
+- **Glassmorphism UI** — blur cards, custom backgrounds, accent color
+- **DOM diff swap** — no backdrop flicker on refresh
+- **5s auto-refresh** — HTMX polling with merge-swap
+- **Responsive** — 2-col mobile, 4-col desktop widget grid
+- **YAML config** — no code changes needed
+- **Mock mode** — test everything without real servers
 
 ---
 
 ## Tech Stack
 
-- **Backend:** Go 1.26.3 (statically compiled, single binary)
-- **Frontend:** HTML5 + Tailwind CSS + HTMX 1.9.10
-- **Configuration:** YAML files
-- **Deployment:** Docker multi-stage build or bare metal
+- **Backend:** Go 1.26 (statically compiled, single binary)
+- **Frontend:** HTML5 + Tailwind CSS + HTMX 1.9.10 + Alpine.js 3.x
+- **Config:** YAML
+- **Deploy:** Docker multi-stage or bare metal
 
 ---
 
@@ -145,21 +155,30 @@ Full documentation is available in the `/documentation` folder:
 
 ```
 dhiarhome/
-├── main.go                 # Application entry point
-├── config.yaml             # Your configuration (gitignored)
-├── config-example.yaml     # Configuration template
-├── Dockerfile              # Multi-stage Docker build
-├── internal/               # Application logic
-│   ├── cache/             # Service state history
-│   ├── config/            # YAML config loader
-│   ├── docker/            # Docker API client
-│   ├── monitor/           # HTTP health checker
-│   └── proxmox/           # Proxmox API client
+├── main.go                    # App entry point
+├── config.yaml                # Your config (gitignored)
+├── config-example.yaml        # Template
+├── Dockerfile                 # Build
+├── internal/
+│   ├── cache/                 # Service state cache
+│   ├── config/                # YAML loader
+│   ├── docker/                # Docker API client
+│   ├── mediaservices/         # Sonarr/Radarr/Overseerr clients
+│   ├── monitor/               # HTTP health checker
+│   ├── network/               # /proc/net/dev monitor
+│   ├── proxmox/               # Proxmox API client
+│   ├── todo/                  # Persistent to-do store
+│   └── widgets/               # Weather, datetime, sysinfo, custom_text
 ├── static/
-│   └── index.html         # Main dashboard page
+│   ├── index.html             # Dashboard page (Go template)
+│   └── backgrounds/           # Custom bg images
 ├── templates/
-│   └── status.html        # Status template
-└── documentation/         # Project documentation
+│   ├── status.html            # Status page
+│   ├── mediaservices.html     # Media services card
+│   ├── todo.html              # To-do widget (Alpine.js)
+│   ├── network.html           # Network card
+│   └── widgets/               # Widget rendering
+└── documentation/             # Docs
 ```
 
 ---
@@ -195,14 +214,14 @@ Home servers often have limited resources. Many existing dashboards are heavy an
 
 ## Roadmap
 
-Planned features (see [to-do.md](documentation/to-do.md) for details):
-
-- Customizable background images
-- Enhanced glassmorphism theme
-- Weather and date/time widgets
-- Network interface monitoring
-- Custom bookmarks and links
-- Service integrations (Plex, Radarr, Sonarr, Portainer)
+- ✅ Background images, glassmorphism theme, accessibility
+- ✅ Weather, datetime, system info, custom text widgets
+- ✅ Network interface monitoring (RX/TX speeds)
+- ✅ Interactive to-do list (Alpine.js)
+- ✅ Media services (Sonarr, Radarr, Overseerr)
+- ⬜ Custom bookmarks and web links
+- ⬜ Additional service integrations (Plex, Portainer)
+- ⬜ Generic HTTP API widget
 
 ---
 
