@@ -1,5 +1,5 @@
 # Stage 1: Build the Go binary
-FROM golang:1.21-alpine AS builder
+FROM golang:alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -34,8 +34,13 @@ COPY --from=builder /app/dhiarhome /app/dhiarhome
 COPY --from=builder /app/static /app/static
 COPY --from=builder /app/templates /app/templates
 
-# Create an empty config.yaml to be mounted over later, or provide the default template
-COPY --from=builder /app/config.yaml /app/config.yaml
+# Create data directory for favicon cache and todo persistence
+RUN mkdir -p /app/data/icons
+
+# Create an empty config.yaml from the example template.
+# IMPORTANT: Mount your own config.yaml at runtime via volume:
+#   docker run -v ./config.yaml:/app/config.yaml dhiarhome
+COPY --from=builder /app/config-example.yaml /app/config.yaml
 
 # Expose port 8080 to the outside world
 EXPOSE 8080

@@ -164,6 +164,23 @@
             overflow-y: auto;
             overflow-x: hidden;
             -webkit-overflow-scrolling: touch;
+            /* Firefox scrollbar */
+            scrollbar-width: thin;
+            scrollbar-color: rgba(255,255,255,0.15) transparent;
+        }
+        /* WebKit scrollbar (Chrome, Safari, Edge) */
+        #scroll-container::-webkit-scrollbar {
+            width: 6px;
+        }
+        #scroll-container::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        #scroll-container::-webkit-scrollbar-thumb {
+            background-color: rgba(255,255,255,0.15);
+            border-radius: 3px;
+        }
+        #scroll-container::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(255,255,255,0.25);
         }
 
         /* ─── Glassmorphism Card ────────────────────────────────────── */

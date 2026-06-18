@@ -103,7 +103,7 @@
     </div>
 
     <!-- Scrollable todo list -->
-    <div class="flex-1 min-h-0 overflow-y-auto max-h-[72px]">
+    <div class="flex-1 min-h-0 overflow-y-auto max-h-[72px]" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
         <div class="space-y-1" x-show="todos.length > 0">
             <template x-for="item in sortedTodos()">
                 <div

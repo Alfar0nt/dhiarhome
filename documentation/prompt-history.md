@@ -1028,6 +1028,244 @@ reduce the decimal on the monitored service of the website, so that it only show
 
 ---
 
+## Session 17: Proxmox Layout Consolidation & LXC/VM Monitoring
+
+**Date:** June 17, 2026
+
+### User Request
+
+```
+merge the cpu usage and memory usage into 1 combined widget in the proxmox section, so that it doesnt take up much space. and then, for proxmox widget, i want you to add the new widget with the ability to monitor lxc/vm, like the actiive and non active vm and lxc. it will shows like for lxc: 5/7, that means 5 active lxc in total of 7 lxc. for developement, you can use or integrate it with the proxmox mock data, so that i can easily see if its active or not without needing to use the actualt proxmox api
+```
+
+### Assistant Response Summary
+
+**Actions Taken:**
+
+1. **Proxmox Client** (`internal/proxmox/client.go`):
+   - Added `VirtualizationInfo` struct with `VMRunning`, `VMTotal`, `LXCRunning`, `LXCTotal` fields
+   - Added `GetVirtualization()` method that fetches QEMU VM list from `/nodes/{node}/qemu` and LXC list from `/nodes/{node}/lxc`
+   - Added `fetchResourceList()` helper for parsing Proxmox resource arrays
+   - Added `getMockVirtualization()` returning mock data: 5/7 LXC, 2/3 VM
+
+2. **Dashboard Data** (`main.go`):
+   - Added `VirtInfo proxmox.VirtualizationInfo` to `DashboardData` struct
+   - Fetch virtualization info in `statusHandler` and pass to template
+
+3. **Template** (`templates/status.html`):
+   - Merged CPU and Memory into single "CPU & Memory" card with dual progress bars
+   - Added "Virtualization" card showing VM count (e.g., "2/3") and LXC count (e.g., "5/7") with icons
+   - **Label alignment fix**: CPU & Memory title now uses simple `<p>` tag (same as Virtualization/Disk) for consistent vertical positioning
+   - **VM/LXC sub-card styling**: Added colored backgrounds (`bg-orange-500/5` for VMs, `bg-teal-500/5` for LXC) with subtle borders for visual separation
+
+### Files Modified
+- `internal/proxmox/client.go` — `VirtualizationInfo`, `GetVirtualization()`, mock data
+- `main.go` — `VirtInfo` in `DashboardData`, fetch in `statusHandler`
+- `templates/status.html` — Combined CPU+Memory card, Virtualization card
+
+---
+
+## Session 18: Phase 4 - Custom Links & Web Bookmarks
+
+**Date:** June 17, 2026
+
+### User Request
+
+```
+okay that iss very good. now i think we're good to go to the phase for according to the documentation/to-do.md, which is to implement a custom links and web bookmark. you can go with that phase 4
+```
+
+### Assistant Response Summary
+
+**Actions Taken:**
+
+1. **Config structures** (`internal/config/config.go`):
+   - Added `BookmarkGroup` struct with `Group` name and `Links` array
+   - Added `BookmarkLink` struct with `Name`, `URL`, `Icon`, `Description`, `NewTab` fields
+   - Added `Bookmarks []BookmarkGroup` to main `Config`
+
+2. **Bookmarks store** (`internal/bookmarks/store.go`):
+   - Created `Store` struct to process bookmark groups
+   - Icon resolution: Lucide SVG name, image path, or auto-fetched favicon
+   - Favicon fetching with MD5-hashed cache filenames in `data/icons/`
+   - `isLucideIcon()` helper for common icon names
+
+3. **Bookmarks template** (`templates/bookmarks.html`):
+   - Flat layout with no group headers (all links in one section)
+   - 5-column grid on desktop (`sm:grid-cols-5`), 3 on mobile
+   - Tighter spacing (`gap-1.5`, `p-1.5`)
+   - Internal scroll when >10 items (`max-h-[180px]`, `overflow-y-auto`)
+   - SVG icons for: server, globe, monitor, play-circle, tv, container, database, home, settings, film
+   - Favicon fallback with `onerror` handling
+   - Hover effects matching dashboard theme
+
+4. **Integration**:
+   - Added to `DashboardData`, `statusHandler`, template parsing
+   - Added `/bookmarks/icons/` endpoint for cached favicons
+   - Added sample bookmarks to `config.yaml`
+   - **Refined**: Combined with Monitored Services into one col-span-2 card (bookmarks left, services right), vertical divider on desktop, horizontal divider on mobile
+   - **Refined**: VM sub-card background unified to teal (matching LXC), icon colors remain distinct (orange VM, teal LXC)
+
+### Files Created
+- `internal/bookmarks/store.go` — Bookmark processing and favicon caching
+- `templates/bookmarks.html` — Bookmarks UI template
+
+### Files Modified
+- `internal/config/config.go` — Bookmark structs and config field
+- `main.go` — Store init, DashboardData field, favicon endpoint
+- `templates/status.html` — Include bookmarks template
+- `config-example.yaml` — Bookmarks section with examples
+- `config.yaml` — Sample bookmarks for testing
+
+---
+
+## Session 19: Internal Scrolling & UI Refinements
+
+**Prompt:** "make the logo and text in the bookmark section a little bit bigger to fit the widget when it is full on 5x2 rows, also add more links to the bookmark section, so it has 11 links, to showcase the internal scrolling. for the monitored services and the docker service, add their own internal scrolling. for the limit, when the monitored services are more than 5, add the internal scrolling. and for the docker services, when more than 3 docker container are monitored, add internal scrolling. also add the placeholder for each of the monitored services and docker services to showcase/mock the internal scrolling for each widget."
+
+### Implementation Summary
+
+1. **Bookmarks** (`templates/bookmarks.html`):
+   - Increased icon size: `w-10 h-10` box, `w-5 h-5` SVG (from `w-8 h-8` / `w-4 h-4`)
+   - Increased text: `text-[11px]` (from `text-[10px]`)
+   - Increased padding: `p-2` (from `p-1.5`), gap: `gap-2` (from `gap-1.5`)
+   - Added 5 more bookmarks to config.yaml (11 total) to showcase scrolling
+
+2. **Monitored Services** (`templates/status.html`):
+   - Added `max-h-[230px] overflow-y-auto` to services list container
+   - Added 3 more services to config.yaml (6 total) to showcase scrolling
+
+3. **Docker Services** (`templates/status.html`):
+   - Added `max-h-[230px] overflow-y-auto` to containers list container
+   - Added 3 more mock containers in main.go (5 total: nginx, pihole, portainer, plex, nextcloud)
+
+### Files Modified
+- `templates/bookmarks.html` — Larger icons/text, adjusted max-height
+- `templates/status.html` — Internal scroll for services and docker lists
+- `config.yaml` — Additional mock bookmarks and services
+- `main.go` — Additional mock Docker containers
+
+---
+
+## Session 20: Scrollbar Theme Unification
+
+**Prompt:** "change the internal scroll color/theme for the to-do to be the same as bookmark, services, and docker services. change the overall desktop/mobile scroll view on the right side of the web to be the same as bookmark and other widget if possible, if its not, make it a dark theme so it matched the overall theme of the web and not to distracting."
+
+### Implementation Summary
+
+1. **Todo widget scrollbar** (`templates/todo.html`):
+   - Added inline `scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent` to match other widgets
+
+2. **Main page scrollbar** (`static/index.html`):
+   - Firefox: `scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.15) transparent` on `#scroll-container`
+   - WebKit (Chrome/Safari/Edge): Custom `::-webkit-scrollbar` rules:
+     - `width: 6px` narrow track
+     - Transparent track background
+     - Thumb: `rgba(255,255,255,0.15)`, `border-radius: 3px`
+     - Hover thumb: `rgba(255,255,255,0.25)`
+
+### Files Modified
+- `templates/todo.html` — Scrollbar inline style
+- `static/index.html` — Global scrollbar CSS
+
+---
+
+## Session 21: Phase 6 — Polish, Performance & Documentation + Phase 5 Deferred
+
+**Prompt:** "I want to skip phase 5 entirely, so you just mark it as pending/or will probably be added in the future works. and the phase 5 with the current state of the project that already been added. thats it for now, update the current state of the project."
+
+### Implementation Summary
+
+1. **Phase 5 Deferred** (`documentation/to-do.md`):
+   - Marked as "DEFERRED (Future Work)" with note about already-implemented parts
+   - Steps 5.4 (Radarr/Sonarr) and partial 5.6 (media services) remain active
+   - Progress tracker updated: 28/33 steps done (Phase 5 excluded from count)
+
+2. **Graceful Shutdown** (`main.go`):
+   - Replaced `http.ListenAndServe()` with `http.Server` + signal handling
+   - HTTP server timeouts: Read 10s, Write 30s, Idle 60s
+   - SIGINT/SIGTERM handling: stops network monitor, shuts down HTTP server (5s grace)
+
+3. **Config Validation** (`internal/config/config.go`):
+   - Added `Validate()` method with comprehensive checks:
+     - Numeric ranges: opacity 0-1, blur 0-30, update interval 1-60
+     - URL format validation for background, services, media, bookmarks
+     - Proxmox: auto-fallback to mock mode when credentials missing
+     - Weather: auto-disable when lat/long not set
+     - Timezone validation with fallback to Local
+   - Feature summary logged on startup: `Active features: Proxmox (mock), Weather, Todos, Bookmarks (11 links)`
+
+4. **Dockerfile** (`Dockerfile`):
+   - Updated base image: `golang:alpine` (latest Go version)
+   - Added `mkdir -p /app/data/icons` for favicon cache
+
+5. **config-example.yaml**:
+   - Expanded bookmarks examples (8 links: Proxmox, Portainer, Grafana, Uptime Kuma, Pi-hole, Plex, Sonarr, Radarr)
+   - Removed description fields (no longer used in UI)
+   - Added icon reference and scrolling note
+
+### Verified (already done)
+- All HTTP clients have 5s timeouts
+- Weather caching works (RWMutex + TTL)
+- Templates pre-parsed at startup
+- Binary size: 14MB (under 15MB target)
+
+### Files Modified
+- `main.go` — Graceful shutdown, HTTP server timeouts
+- `internal/config/config.go` — Validate() method
+- `Dockerfile` — Go version, data/ directory
+- `config-example.yaml` — Bookmarks expanded
+- `documentation/to-do.md` — Phase 5 deferred, Phase 6 complete, tracker updated
+
+---
+
+## Session 22: Security Hardening
+
+**Prompt:** "i want you to implement all the security changes to this project"
+
+### Implementation Summary
+
+1. **Security Headers Middleware** (`main.go`):
+   - `securityHeaders()` wraps all HTTP responses with:
+     - `X-Content-Type-Options: nosniff`
+     - `X-Frame-Options: DENY` (prevents clickjacking)
+     - `X-XSS-Protection: 1; mode=block`
+     - `Referrer-Policy: same-origin`
+     - `Content-Security-Policy` — allows Tailwind CDN, HTMX/Alpine CDN, Google Fonts
+   - Applied via `http.ServeMux` + handler chain (replaced global `http.HandleFunc`)
+
+2. **Per-IP Rate Limiter** (`main.go`):
+   - `rateLimiter` struct with sliding window algorithm
+   - 30 requests/minute per IP on API endpoints
+   - Respects `X-Forwarded-For` and `X-Real-IP` for reverse proxy setups
+   - Returns HTTP 429 Too Many Requests when exceeded
+
+3. **Path Traversal Protection** (`main.go` — `backgroundServeHandler`):
+   - `filepath.Clean()` normalizes the path
+   - Rejects any path containing `..` segments
+   - Logs `[SECURITY]` warning on blocked attempts, returns HTTP 403
+
+4. **Input Length Validation** (`main.go` — `todoAPIHandler`):
+   - Todo text capped at 500 characters, returns HTTP 400 when exceeded
+
+5. **Dockerfile Hardening** (`Dockerfile`):
+   - Copies `config-example.yaml` instead of real `config.yaml` into image
+   - Prevents credential leakage when publishing Docker images
+
+### Security Audit Findings
+- No hardcoded secrets, API keys, or passwords in source code
+- `config.yaml` never committed to git (verified via git log history)
+- `InsecureSkipVerify: true` retained for Proxmox (self-signed homelab certs)
+
+### Files Modified
+- `main.go` — Security headers, rate limiter, path traversal, input validation
+- `Dockerfile` — config-example.yaml instead of config.yaml
+- `documentation/changelogs.md` — Version 0.10.1 entry
+- `documentation/prompt-history.md` — Session 22 added
+- `documentation/to-do.md` — Security hardening step marked complete
+
+---
+
 ## Notes
 
 - All documentation files are located in the `/documentation` folder

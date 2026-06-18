@@ -42,6 +42,13 @@ type CPUInfo struct {
 	Threads   int // logical CPUs (siblings)
 }
 
+type VirtualizationInfo struct {
+	VMRunning  int
+	VMTotal    int
+	LXCRunning int
+	LXCTotal   int
+}
+
 type Client struct {
 	url         string
 	nodeName    string
@@ -155,6 +162,81 @@ func (ns *NodeStatus) fetchDiskList(c *Client) {
 			Total:      d.Size,
 			Used:       d.Used,
 		})
+	}
+}
+
+func (c *Client) GetVirtualization() (VirtualizationInfo, error) {
+	if c.mock {
+		return getMockVirtualization(), nil
+	}
+
+	var info VirtualizationInfo
+
+	// Fetch QEMU VMs
+	vmEndpoint := fmt.Sprintf("%s/nodes/%s/qemu", c.url, url.PathEscape(c.nodeName))
+	vms, err := c.fetchResourceList(vmEndpoint)
+	if err == nil {
+		info.VMTotal = len(vms)
+		for _, vm := range vms {
+			if vm.Status == "running" {
+				info.VMRunning++
+			}
+		}
+	}
+
+	// Fetch LXC containers
+	lxcEndpoint := fmt.Sprintf("%s/nodes/%s/lxc", c.url, url.PathEscape(c.nodeName))
+	lxcs, err := c.fetchResourceList(lxcEndpoint)
+	if err == nil {
+		info.LXCTotal = len(lxcs)
+		for _, lxc := range lxcs {
+			if lxc.Status == "running" {
+				info.LXCRunning++
+			}
+		}
+	}
+
+	return info, nil
+}
+
+type proxmoxResource struct {
+	VMID   int    `json:"vmid"`
+	Name   string `json:"name"`
+	Status string `json:"status"` // "running", "stopped"
+}
+
+func (c *Client) fetchResourceList(endpoint string) ([]proxmoxResource, error) {
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Authorization", fmt.Sprintf("PVEAPIToken=%s=%s", c.tokenID, c.tokenSecret))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("proxmox API returned status: %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Data []proxmoxResource `json:"data"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, err
+	}
+	return result.Data, nil
+}
+
+func getMockVirtualization() VirtualizationInfo {
+	return VirtualizationInfo{
+		VMRunning:  2,
+		VMTotal:    3,
+		LXCRunning: 5,
+		LXCTotal:   7,
 	}
 }
 

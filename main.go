@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -8,12 +9,15 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
+	"dhiarhome/internal/bookmarks"
 	"dhiarhome/internal/cache"
 	"dhiarhome/internal/config"
 	"dhiarhome/internal/docker"
@@ -25,37 +29,126 @@ import (
 	"dhiarhome/internal/widgets"
 )
 
+// ── Security: simple per-IP rate limiter ──────────────────────────────────────
+
+type rateLimiter struct {
+	mu     sync.Mutex
+	visits map[string][]time.Time
+	limit  int
+	window time.Duration
+}
+
+func newRateLimiter(limit int, window time.Duration) *rateLimiter {
+	return &rateLimiter{
+		visits: make(map[string][]time.Time),
+		limit:  limit,
+		window: window,
+	}
+}
+
+func (rl *rateLimiter) Allow(ip string) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+
+	now := time.Now()
+	cutoff := now.Add(-rl.window)
+
+	// Prune old entries
+	var recent []time.Time
+	for _, t := range rl.visits[ip] {
+		if t.After(cutoff) {
+			recent = append(recent, t)
+		}
+	}
+
+	if len(recent) >= rl.limit {
+		rl.visits[ip] = recent
+		return false
+	}
+
+	rl.visits[ip] = append(recent, now)
+	return true
+}
+
+var apiLimiter = newRateLimiter(30, 1*time.Minute) // 30 requests/min per IP
+
 type DashboardData struct {
-	Proxmox       proxmox.NodeStatus
-	CPUInfo       proxmox.CPUInfo
-	Containers    []docker.Container
-	Services      []cache.ServiceState
-	Widgets       []widgets.WidgetData
-	DateTime24h   bool
-	DateTimezone  string
-	Network       []network.InterfaceStats
-	NetShowSpeed  bool
-	NetShowTotal  bool
-	Todos         []todo.Todo
-	TodoEnabled   bool
-	TodoTitle     string
-	MediaServices []mediaservices.MediaServiceStats
+	Proxmox        proxmox.NodeStatus
+	CPUInfo        proxmox.CPUInfo
+	VirtInfo       proxmox.VirtualizationInfo
+	Containers     []docker.Container
+	Services       []cache.ServiceState
+	Widgets        []widgets.WidgetData
+	DateTime24h    bool
+	DateTimezone   string
+	Network        []network.InterfaceStats
+	NetShowSpeed   bool
+	NetShowTotal   bool
+	Todos          []todo.Todo
+	TodoEnabled    bool
+	TodoTitle      string
+	MediaServices  []mediaservices.MediaServiceStats
+	BookmarkGroups []bookmarks.DisplayGroup
 }
 
 var (
-	appConfig       *config.Config
-	historyCache    *cache.HistoryCache
-	pxClient        *proxmox.Client
-	dkClient        *docker.Client
-	tmpl            *template.Template
-	indexTmpl       *template.Template
-	widgetRegistry  *widgets.Registry
-	netMonitor      *network.Monitor
-	todoStore       *todo.Store
-	localCPUInfo    proxmox.CPUInfo
-	mediaStats      []mediaservices.MediaServiceStats
-	mediaStatsMu    sync.RWMutex
+	appConfig      *config.Config
+	historyCache   *cache.HistoryCache
+	pxClient       *proxmox.Client
+	dkClient       *docker.Client
+	tmpl           *template.Template
+	indexTmpl      *template.Template
+	widgetRegistry *widgets.Registry
+	netMonitor     *network.Monitor
+	todoStore      *todo.Store
+	bookmarkStore  *bookmarks.Store
+	localCPUInfo   proxmox.CPUInfo
+	mediaStats     []mediaservices.MediaServiceStats
+	mediaStatsMu   sync.RWMutex
 )
+
+// ── Security: middleware ───────────────────────────────────────────────────────
+
+// securityHeaders adds standard security headers to every response.
+func securityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Content-Type-Options", "nosniff")
+		w.Header().Set("X-Frame-Options", "DENY")
+		w.Header().Set("X-XSS-Protection", "1; mode=block")
+		w.Header().Set("Referrer-Policy", "same-origin")
+		w.Header().Set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com")
+		next.ServeHTTP(w, r)
+	})
+}
+
+// clientIP extracts the client IP from the request (respects X-Forwarded-For).
+func clientIP(r *http.Request) string {
+	if xff := r.Header.Get("X-Forwarded-For"); xff != "" {
+		parts := strings.SplitN(xff, ",", 2)
+		return strings.TrimSpace(parts[0])
+	}
+	if xri := r.Header.Get("X-Real-IP"); xri != "" {
+		return xri
+	}
+	// Strip port from RemoteAddr
+	addr := r.RemoteAddr
+	if idx := strings.LastIndex(addr, ":"); idx != -1 {
+		return addr[:idx]
+	}
+	return addr
+}
+
+// rateLimitMiddleware rejects requests that exceed the per-IP rate limit.
+func rateLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		ip := clientIP(r)
+		if !apiLimiter.Allow(ip) {
+			http.Error(w, "Too many requests", http.StatusTooManyRequests)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
 
 func main() {
 	var err error
@@ -104,6 +197,12 @@ func main() {
 	// Read local CPU info once at startup
 	localCPUInfo = proxmox.ReadLocalCPUInfo()
 
+	// Initialize bookmarks store if configured
+	if len(appConfig.Bookmarks) > 0 {
+		bookmarkStore = bookmarks.NewStore(appConfig.Bookmarks, "data/icons")
+		log.Printf("Bookmarks initialized: %d groups", len(appConfig.Bookmarks))
+	}
+
 	// Initialize network monitor if enabled
 	if appConfig.Network.Enabled && len(appConfig.Network.Interfaces) > 0 {
 		ifaces := make(map[string]string)
@@ -135,7 +234,7 @@ func main() {
 			}
 			return fmt.Sprintf("%.2f s", d.Seconds())
 		},
-	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html", "templates/mediaservices.html"))
+	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html", "templates/mediaservices.html", "templates/bookmarks.html"))
 
 	// Parse index.html as a template for dynamic appearance injection
 	indexTmpl = template.Must(template.New("index.html").ParseFiles("static/index.html"))
@@ -150,25 +249,68 @@ func main() {
 
 	// Serve static files but handle index.html as a template
 	fs := http.FileServer(http.Dir("static"))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/" || r.URL.Path == "/index.html" {
 			indexHandler(w, r)
 			return
 		}
 		fs.ServeHTTP(w, r)
 	})
-	http.HandleFunc("/status", statusHandler)
-	http.HandleFunc("/api/background", backgroundHandler)
-	http.HandleFunc("/background", backgroundServeHandler)
+	mux.HandleFunc("/status", statusHandler)
+	mux.HandleFunc("/api/background", backgroundHandler)
+	mux.HandleFunc("/background", backgroundServeHandler)
 
-	// Todo API endpoints
+	// Bookmarks favicon cache endpoint
+	mux.Handle("/bookmarks/icons/", http.StripPrefix("/bookmarks/icons/", http.FileServer(http.Dir("data/icons"))))
+
+	// Todo API endpoints (rate-limited)
 	if appConfig.Todos.Enabled {
-		http.HandleFunc("/api/todos", todoAPIHandler)
-		http.HandleFunc("/api/todos/", todoItemHandler) // trailing slash for /api/todos/{id}
+		todoHandler := rateLimitMiddleware(http.HandlerFunc(todoAPIHandler))
+		todoItemRoute := rateLimitMiddleware(http.HandlerFunc(todoItemHandler))
+		mux.Handle("/api/todos", todoHandler)
+		mux.Handle("/api/todos/", todoItemRoute) // trailing slash for /api/todos/{id}
 	}
 
+	// Wrap entire mux with security headers
+	handler := securityHeaders(mux)
+
 	log.Println("Server listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+
+	// Start HTTP server in a goroutine for graceful shutdown
+	srv := &http.Server{
+		Addr:         ":8080",
+		Handler:      handler,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 30 * time.Second,
+		IdleTimeout:  60 * time.Second,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("HTTP server error: %v", err)
+		}
+	}()
+
+	// Wait for interrupt signal
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+	log.Println("Shutting down server...")
+
+	// Stop background goroutines
+	if netMonitor != nil {
+		netMonitor.Stop()
+		log.Println("Network monitor stopped")
+	}
+
+	// Graceful HTTP shutdown (wait up to 5s for in-flight requests)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("HTTP server forced shutdown: %v", err)
+	}
+	log.Println("Server stopped")
 }
 
 func pollMediaServices() {
@@ -277,7 +419,15 @@ func backgroundServeHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, err := os.ReadFile(imgPath)
+	// Security: reject path traversal attempts
+	clean := filepath.Clean(imgPath)
+	if strings.Contains(clean, "..") || filepath.IsAbs(clean) && !strings.HasPrefix(clean, "/app/") {
+		log.Printf("[SECURITY] Blocked path traversal attempt: %s", imgPath)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	data, err := os.ReadFile(clean)
 	if err != nil {
 		log.Printf("Background image error: %v", err)
 		http.NotFound(w, r)
@@ -285,7 +435,7 @@ func backgroundServeHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Detect content type from extension
-	ext := filepath.Ext(imgPath)
+	ext := filepath.Ext(clean)
 	contentType := mime.TypeByExtension(ext)
 	if contentType == "" {
 		contentType = "image/png"
@@ -312,6 +462,9 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 			containers = []docker.Container{
 				{Names: []string{"/nginx"}, State: "running", Status: "Up 2 days"},
 				{Names: []string{"/pihole"}, State: "exited", Status: "Exited (0) 5 hours ago"},
+				{Names: []string{"/portainer"}, State: "running", Status: "Up 14 days"},
+				{Names: []string{"/plex"}, State: "running", Status: "Up 7 days"},
+				{Names: []string{"/nextcloud"}, State: "running", Status: "Up 3 days"},
 			}
 		}
 	} else {
@@ -357,6 +510,12 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 		todos = todoStore.GetAll()
 	}
 
+	// Fetch virtualization info (VMs and LXCs)
+	virtInfo, err := pxClient.GetVirtualization()
+	if err != nil {
+		log.Printf("Proxmox Virtualization Error: %v", err)
+	}
+
 	// Get media service stats
 	var medias []mediaservices.MediaServiceStats
 	mediaStatsMu.RLock()
@@ -372,21 +531,29 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 	}
 	mediaStatsMu.RUnlock()
 
+	// Get bookmark groups
+	var bookmarkGroups []bookmarks.DisplayGroup
+	if bookmarkStore != nil {
+		bookmarkGroups = bookmarkStore.GetGroups()
+	}
+
 	data := DashboardData{
-		Proxmox:      pxStatus,
-		CPUInfo:      cpuInfo,
-		Containers:   containers,
-		Services:     latestServices,
-		Widgets:      combineWidgets(widgetRegistry.FetchAll()),
-		DateTime24h:  appConfig.Widgets.DateTime.Format24h,
-		DateTimezone: appConfig.Widgets.DateTime.Timezone,
-		Network:      netStats,
-		NetShowSpeed: appConfig.Network.ShowSpeed,
-		NetShowTotal: appConfig.Network.ShowTotal,
-		Todos:         todos,
-		TodoEnabled:   appConfig.Todos.Enabled,
-		TodoTitle:     appConfig.Todos.Title,
-		MediaServices: medias,
+		Proxmox:        pxStatus,
+		CPUInfo:        cpuInfo,
+		VirtInfo:       virtInfo,
+		Containers:     containers,
+		Services:       latestServices,
+		Widgets:        combineWidgets(widgetRegistry.FetchAll()),
+		DateTime24h:    appConfig.Widgets.DateTime.Format24h,
+		DateTimezone:   appConfig.Widgets.DateTime.Timezone,
+		Network:        netStats,
+		NetShowSpeed:   appConfig.Network.ShowSpeed,
+		NetShowTotal:   appConfig.Network.ShowTotal,
+		Todos:          todos,
+		TodoEnabled:    appConfig.Todos.Enabled,
+		TodoTitle:      appConfig.Todos.Title,
+		MediaServices:  medias,
+		BookmarkGroups: bookmarkGroups,
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {
@@ -475,7 +642,13 @@ func todoAPIHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Invalid request body", http.StatusBadRequest)
 			return
 		}
-		t := todoStore.Add(strings.TrimSpace(body.Text))
+		// Security: limit input length to prevent abuse
+		text := strings.TrimSpace(body.Text)
+		if len(text) > 500 {
+			http.Error(w, "Text too long (max 500 characters)", http.StatusBadRequest)
+			return
+		}
+		t := todoStore.Add(text)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(t)

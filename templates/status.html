@@ -10,36 +10,71 @@
         </h2>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
-            <!-- CPU -->
-            <div class="glass-inner relative overflow-hidden p-4 group" role="meter" aria-label="CPU Usage" aria-valuenow="{{ printf "%.1f" (mult .Proxmox.CPU 100) }}" aria-valuemin="0" aria-valuemax="100">
+            <!-- CPU + Memory (Combined) -->
+            <div class="glass-inner relative overflow-hidden p-4 group">
                 <div class="absolute inset-0 bg-blue-500/5 transition-opacity duration-300 opacity-0 group-hover:opacity-100"></div>
-                <div class="flex items-center justify-between">
-                    <p class="metric-label">CPU Usage</p>
-                    {{ if and .CPUInfo.ModelName .CPUInfo.Cores .CPUInfo.Threads }}
-                    <div class="text-right">
-                        <div class="text-[9px] text-gray-400 max-w-[140px] truncate leading-tight">{{ .CPUInfo.ModelName }}</div>
-                        <span class="text-[10px] text-gray-500 tabular-nums">{{ .CPUInfo.Cores }}C / {{ .CPUInfo.Threads }}T</span>
+                <p class="metric-label mb-3">CPU & Memory</p>
+                {{ if and .CPUInfo.ModelName .CPUInfo.Cores .CPUInfo.Threads }}
+                <div class="flex items-center space-x-2 mb-2">
+                    <span class="text-[9px] text-gray-400 truncate max-w-[120px]">{{ .CPUInfo.ModelName }}</span>
+                    <span class="text-[9px] text-gray-500 tabular-nums">{{ .CPUInfo.Cores }}C/{{ .CPUInfo.Threads }}T</span>
+                </div>
+                {{ end }}
+
+                <!-- CPU -->
+                <div class="mb-3" role="meter" aria-label="CPU Usage" aria-valuenow="{{ printf "%.1f" (mult .Proxmox.CPU 100) }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[11px] text-gray-400">CPU</span>
+                        <span class="text-sm metric-value tabular-nums">{{ printf "%.1f" (mult .Proxmox.CPU 100) }}<span class="text-xs text-gray-500">%</span></span>
                     </div>
-                    {{ end }}
+                    <div class="w-full bg-gray-700/50 rounded-full h-1.5" aria-hidden="true">
+                        <div class="bg-blue-500 h-1.5 rounded-full progress-bar" style="width: {{ mult .Proxmox.CPU 100 }}%"></div>
+                    </div>
                 </div>
-                <div class="flex items-end justify-between mt-2">
-                    <p class="text-3xl metric-value">{{ printf "%.1f" (mult .Proxmox.CPU 100) }}<span class="text-lg text-gray-500">%</span></p>
-                </div>
-                <div class="w-full bg-gray-700/50 rounded-full h-1.5 mt-4" aria-hidden="true">
-                    <div class="bg-blue-500 h-1.5 rounded-full progress-bar" style="width: {{ mult .Proxmox.CPU 100 }}%"></div>
+
+                <!-- Memory -->
+                <div role="meter" aria-label="Memory Usage" aria-valuenow="{{ printf "%.1f" (percent .Proxmox.Memory.Used .Proxmox.Memory.Total) }}" aria-valuemin="0" aria-valuemax="100">
+                    <div class="flex items-center justify-between mb-1">
+                        <span class="text-[11px] text-gray-400">Memory</span>
+                        <span class="text-sm metric-value tabular-nums">{{ printf "%.1f" (percent .Proxmox.Memory.Used .Proxmox.Memory.Total) }}<span class="text-xs text-gray-500">%</span></span>
+                    </div>
+                    <div class="flex items-center justify-between mb-1">
+                        <span></span>
+                        <span class="text-[10px] text-gray-500 tabular-nums">{{ printf "%.1f" (gb .Proxmox.Memory.Used) }}GB / {{ printf "%.1f" (gb .Proxmox.Memory.Total) }}GB</span>
+                    </div>
+                    <div class="w-full bg-gray-700/50 rounded-full h-1.5" aria-hidden="true">
+                        <div class="bg-green-500 h-1.5 rounded-full progress-bar" style="width: {{ percent .Proxmox.Memory.Used .Proxmox.Memory.Total }}%"></div>
+                    </div>
                 </div>
             </div>
 
-            <!-- RAM -->
-            <div class="glass-inner relative overflow-hidden p-4 group" role="meter" aria-label="Memory Usage" aria-valuenow="{{ printf "%.1f" (percent .Proxmox.Memory.Used .Proxmox.Memory.Total) }}" aria-valuemin="0" aria-valuemax="100">
-                <div class="absolute inset-0 bg-green-500/5 transition-opacity duration-300 opacity-0 group-hover:opacity-100"></div>
-                <p class="metric-label">Memory Usage</p>
-                <div class="flex items-end justify-between mt-2">
-                    <p class="text-3xl metric-value">{{ printf "%.1f" (percent .Proxmox.Memory.Used .Proxmox.Memory.Total) }}<span class="text-lg text-gray-500">%</span></p>
-                    <p class="text-xs text-gray-400 mb-1 tabular-nums">{{ printf "%.1f" (gb .Proxmox.Memory.Used) }}GB / {{ printf "%.1f" (gb .Proxmox.Memory.Total) }}GB</p>
-                </div>
-                <div class="w-full bg-gray-700/50 rounded-full h-1.5 mt-4" aria-hidden="true">
-                    <div class="bg-green-500 h-1.5 rounded-full progress-bar" style="width: {{ percent .Proxmox.Memory.Used .Proxmox.Memory.Total }}%"></div>
+            <!-- Virtualization Overview (LXC + VM) -->
+            <div class="glass-inner relative overflow-hidden p-4 group">
+                <div class="absolute inset-0 bg-orange-500/5 transition-opacity duration-300 opacity-0 group-hover:opacity-100"></div>
+                <p class="metric-label mb-3">Virtualization</p>
+                <div class="grid grid-cols-2 gap-3">
+                    <!-- VM -->
+                    <div class="text-center p-3 rounded-lg bg-teal-500/5 border border-teal-400/10">
+                        <div class="flex items-center justify-center space-x-1 mb-1">
+                            <svg class="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+                            </svg>
+                            <span class="text-[11px] text-gray-400">VMs</span>
+                        </div>
+                        <p class="text-2xl font-bold text-white metric-value tabular-nums">{{ .VirtInfo.VMRunning }}<span class="text-sm text-gray-500">/{{ .VirtInfo.VMTotal }}</span></p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">{{ .VirtInfo.VMRunning }} running</p>
+                    </div>
+                    <!-- LXC -->
+                    <div class="text-center p-3 rounded-lg bg-teal-500/5 border border-teal-400/10">
+                        <div class="flex items-center justify-center space-x-1 mb-1">
+                            <svg class="w-4 h-4 text-teal-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"></path>
+                            </svg>
+                            <span class="text-[11px] text-gray-400">LXC</span>
+                        </div>
+                        <p class="text-2xl font-bold text-white metric-value tabular-nums">{{ .VirtInfo.LXCRunning }}<span class="text-sm text-gray-500">/{{ .VirtInfo.LXCTotal }}</span></p>
+                        <p class="text-[10px] text-gray-500 mt-0.5">{{ .VirtInfo.LXCRunning }} running</p>
+                    </div>
                 </div>
             </div>
 
@@ -72,38 +107,63 @@
 
     {{ template "mediaservices.html" . }}
 
-    <!-- Web Services -->
+    <!-- Bookmarks + Monitored Services (Combined) -->
     <div class="glass-card p-6 col-span-1 md:col-span-2 md:min-h-[320px]">
-        <h2 class="text-xl font-bold text-white mb-5 flex items-center">
-            <svg class="w-6 h-6 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
-            <span>Monitored Services</span>
-        </h2>
-        <div class="space-y-3">
-            {{ range .Services }}
-            <div class="flex items-center justify-between p-3 glass-inner group" tabindex="0" aria-label="{{ .Name }}: {{ .Status }}, response time {{ .ResponseTime }}">
-                <div class="flex items-center space-x-3">
-                    {{ if eq .Status "Online" }}
-                        <span class="relative flex h-3 w-3" aria-hidden="true">
-                          <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                          <span class="live-dot relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                        </span>
+        <div class="flex flex-col md:flex-row gap-6 h-full">
+
+            <!-- Bookmarks (Left) -->
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-bold text-white mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
+                    </svg>
+                    <span>Bookmarks</span>
+                </h2>
+                {{ template "bookmarks" . }}
+                {{ if not .BookmarkGroups }}
+                <p class="text-gray-500 text-xs">No bookmarks configured.</p>
+                {{ end }}
+            </div>
+
+            <!-- Divider -->
+            <div class="hidden md:block w-px bg-gray-700/50 flex-shrink-0"></div>
+            <div class="md:hidden h-px bg-gray-700/50"></div>
+
+            <!-- Monitored Services (Right) -->
+            <div class="flex-1 min-w-0">
+                <h2 class="text-lg font-bold text-white mb-4 flex items-center">
+                    <svg class="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                    <span>Services</span>
+                </h2>
+                <div class="space-y-2 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
+                    {{ range .Services }}
+                    <div class="flex items-center justify-between p-2.5 glass-inner group" tabindex="0" aria-label="{{ .Name }}: {{ .Status }}, response time {{ .ResponseTime }}">
+                        <div class="flex items-center space-x-2 min-w-0">
+                            {{ if eq .Status "Online" }}
+                                <span class="relative flex h-2.5 w-2.5 flex-shrink-0" aria-hidden="true">
+                                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                                  <span class="live-dot relative inline-flex rounded-full h-2.5 w-2.5 bg-green-500"></span>
+                                </span>
+                            {{ else }}
+                                <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] flex-shrink-0" aria-hidden="true"></span>
+                            {{ end }}
+                            <span class="text-white font-medium text-sm truncate">{{ .Name }}</span>
+                        </div>
+                        <div class="flex items-center space-x-3 flex-shrink-0 ml-2">
+                            <span class="text-[10px] text-gray-400 tabular-nums">{{ roundDur .ResponseTime }}</span>
+                            {{ if eq .Status "Online" }}
+                                <span class="px-2 py-0.5 text-[10px] font-semibold text-green-400 bg-green-400/10 rounded-full border border-green-400/20">Online</span>
+                            {{ else }}
+                                <span class="px-2 py-0.5 text-[10px] font-semibold text-red-400 bg-red-400/10 rounded-full border border-red-400/20">Offline</span>
+                            {{ end }}
+                        </div>
+                    </div>
                     {{ else }}
-                        <span class="relative inline-flex rounded-full h-3 w-3 bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.8)]" aria-hidden="true"></span>
-                    {{ end }}
-                    <span class="text-white font-medium text-sm">{{ .Name }}</span>
-                </div>
-                <div class="flex items-center space-x-4">
-                    <span class="text-xs text-gray-400 tabular-nums">{{ roundDur .ResponseTime }}</span>
-                    {{ if eq .Status "Online" }}
-                        <span class="px-2.5 py-1 text-[11px] font-semibold text-green-400 bg-green-400/10 rounded-full border border-green-400/20">Online</span>
-                    {{ else }}
-                        <span class="px-2.5 py-1 text-[11px] font-semibold text-red-400 bg-red-400/10 rounded-full border border-red-400/20">Offline</span>
+                    <p class="text-gray-500 text-xs">No services configured.</p>
                     {{ end }}
                 </div>
             </div>
-            {{ else }}
-            <p class="text-gray-400 text-sm">No services configured.</p>
-            {{ end }}
+
         </div>
     </div>
 
@@ -113,7 +173,7 @@
             <svg class="w-6 h-6 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
             <span>Docker Services</span>
         </h2>
-        <div class="space-y-3">
+        <div class="space-y-3 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
             {{ range .Containers }}
             <div class="p-3 glass-inner" tabindex="0" aria-label="Container {{ range .Names }}{{ . }}{{ end }}: {{ .State }}">
                 <div class="flex items-center justify-between mb-1">

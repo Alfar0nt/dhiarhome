@@ -193,6 +193,7 @@ dhiarhome/
 - Authenticates using API token (PVEAPIToken header)
 - Fetches node status (CPU, memory, disk, uptime)
 - **Multi-disk support**: `Disks []DiskInfo` with mountpoint, total, used per disk. Fetches additional disks from `/nodes/{node}/disks/list` endpoint. Mock mode returns 3 disks.
+- **Virtualization monitoring**: `GetVirtualization()` fetches QEMU VM and LXC container lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc`. Returns `VirtualizationInfo` with running/total counts for both VMs and LXCs. Mock mode returns 5/7 LXC, 2/3 VM.
 - Supports self-signed certificates (TLS skip verify)
 - Mock mode generates random realistic data
 
@@ -252,6 +253,14 @@ dhiarhome/
 - `GetAll()`, `Add(text)`, `Toggle(id)`, `Delete(id)` with `sync.RWMutex`
 - Saves to `data/todos.json` on every mutation
 - Interactive UI via Alpine.js (client-side `fetch()` to REST API)
+
+#### Bookmarks Store (`internal/bookmarks`)
+- Configurable web bookmarks organized into named groups
+- `NewStore(groups, cacheDir)` processes config and initializes favicon cache
+- Icon resolution: Lucide SVG name, image path, or auto-fetched favicon
+- Favicon caching: downloads from URL's `/favicon.ico` and saves to `data/icons/` with MD5-hashed filenames
+- Responsive grid UI (2-6 columns) with glassmorphism cards and group headings
+- Built-in SVG icons for common services: server, globe, monitor, play-circle, tv, container, database, home, settings, film
 
 #### CPU Info (`internal/proxmox`)
 - `CPUInfo` struct: `ModelName`, `Cores` (physical), `Threads` (logical)

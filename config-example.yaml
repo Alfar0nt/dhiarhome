@@ -104,3 +104,48 @@ todos:
   enabled: false               # Interactive to-do list on dashboard
   file_path: "data/todos.json" # JSON file for persistent storage
   title: "To-Do"               # Widget title
+
+# ─── Bookmarks (Custom Links & Web Bookmarks) ──────────────────────────
+# Organize links into groups. Each link can have an icon (Lucide name,
+# image path, or "favicon" to auto-fetch from the URL).
+# Available icons: server, globe, monitor, play-circle, tv, container,
+#                  database, home, settings, film (or any image path).
+# Groups are flattened in the UI — all links appear in one section.
+# Internal scrolling activates when there are more than 10 links.
+bookmarks: []
+  # - group: "Infrastructure"
+  #   links:
+  #     - name: "Proxmox VE"
+  #       url: "https://192.168.1.100:8006"
+  #       icon: "server"
+  #       new_tab: true
+  #     - name: "Portainer"
+  #       url: "https://192.168.1.100:9443"
+  #       icon: "container"
+  #       new_tab: true
+  #     - name: "Grafana"
+  #       url: "https://grafana.example.com"
+  #       icon: "monitor"
+  #       new_tab: true
+  #     - name: "Uptime Kuma"
+  #       url: "https://kuma.example.com"
+  #       icon: "database"
+  #       new_tab: true
+  #     - name: "Pi-hole"
+  #       url: "https://pihole.example.com"
+  #       icon: "settings"
+  #       new_tab: true
+  # - group: "Media"
+  #   links:
+  #     - name: "Plex"
+  #       url: "https://plex.example.com"
+  #       icon: "play-circle"
+  #       new_tab: true
+  #     - name: "Sonarr"
+  #       url: "https://sonarr.example.com"
+  #       icon: "tv"
+  #       new_tab: true
+  #     - name: "Radarr"
+  #       url: "https://radarr.example.com"
+  #       icon: "film"
+  #       new_tab: true
