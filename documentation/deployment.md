@@ -23,7 +23,7 @@ This guide covers all deployment methods for dhiarhome, from Docker containers t
 - **Git** (for cloning the repository)
 
 ### For Bare Metal Deployment
-- **Go** (version 1.21 or higher)
+- **Go** (version 1.21 or higher; v1.0.0 built with Go 1.26)
 - **Git**
 - **Linux** (tested on Debian/Ubuntu, should work on any Linux distro)
 - **Docker socket access** (if monitoring Docker containers)
@@ -63,10 +63,10 @@ docker build -t dhiarhome .
 ```
 
 This creates a multi-stage build:
-- Stage 1: Compiles Go binary using `golang:1.21-alpine`
+- Stage 1: Compiles Go binary using `golang:alpine`
 - Stage 2: Creates minimal runtime image using `alpine:latest`
 
-Final image size: ~15-20 MB
+Final image size: ~20-25 MB
 
 #### Step 4: Run the Container
 ```bash
@@ -137,10 +137,10 @@ docker-compose down
 
 ### Method 3: Pre-built Image (If Available)
 
-If a pre-built image is published to Docker Hub or GitHub Container Registry:
+Pre-built images are available via GitHub Container Registry:
 
 ```bash
-docker pull ghcr.io/alfar0nt/dhiarhome:latest
+docker pull ghcr.io/alfar0nt/dhiarhome:v1.0.0
 ```
 
 ```bash
@@ -150,7 +150,7 @@ docker run -d \
   -v $(pwd)/config.yaml:/app/config.yaml \
   -v /var/run/docker.sock:/var/run/docker.sock:ro \
   --restart unless-stopped \
-  ghcr.io/alfar0nt/dhiarhome:latest
+  ghcr.io/alfar0nt/dhiarhome:v1.0.0
 ```
 
 ---
@@ -191,12 +191,12 @@ docker run -d \
 Download and install Go from [golang.org](https://go.dev/dl/):
 
 ```bash
-# Download Go (check for latest version)
-wget https://go.dev/dl/go1.21.5.linux-amd64.tar.gz
+# Download Go (check for latest version at https://go.dev/dl/)
+wget https://go.dev/dl/go1.26.0.linux-amd64.tar.gz
 
 # Extract to /usr/local
 sudo rm -rf /usr/local/go
-sudo tar -C /usr/local -xzf go1.21.5.linux-amd64.tar.gz
+sudo tar -C /usr/local -xzf go1.26.0.linux-amd64.tar.gz
 
 # Add to PATH (add to ~/.bashrc or ~/.zshrc)
 export PATH=$PATH:/usr/local/go/bin
@@ -382,7 +382,7 @@ Add as many services as you want to monitor. The dashboard will check each URL a
 
 Start the application and check the logs:
 ```bash
-./dashboard
+./dhiarhome
 ```
 
 Or view Docker logs:
@@ -461,7 +461,7 @@ You should receive JSON with CPU, memory, and disk stats.
 - Ensure user has permission to access socket
 - For Docker deployment, verify socket is mounted:
   ```bash
-  docker inspect homelab-dashboard | grep -A5 Mounts
+  docker inspect dhiarhome | grep -A5 Mounts
   ```
 
 ### Issue: "No containers found"
@@ -562,18 +562,18 @@ dashboard.example.com {
 **Docker:**
 ```bash
 docker logs dhiarhome
-docker logs -f homelab-dashboard  # Follow mode
+docker logs -f dhiarhome  # Follow mode
 ```
 
 **Systemd:**
 ```bash
 sudo journalctl -u dhiarhome
-sudo journalctl -u homelab-dashboard -f  # Follow mode
+sudo journalctl -u dhiarhome -f  # Follow mode
 ```
 
 **Manual:**
 ```bash
-tail -f dashboard.log
+tail -f dhiarhome.log
 ```
 
 ### Update the Dashboard
@@ -648,10 +648,10 @@ docker run -d -p 8080:8080 -v $(pwd)/config.yaml:/app/config.yaml -v /var/run/do
 go build -o dhiarhome main.go
 
 # Run binary
-./dashboard
+./dhiarhome
 
 # Start systemd service
-sudo systemctl start homelab-dashboard
+sudo systemctl start dhiarhome
 
 # View Docker logs
 docker logs -f dhiarhome

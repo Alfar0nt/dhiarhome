@@ -95,8 +95,8 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **HTTP/HTTPS** - Service health checks
 
 ### Deployment
-- **Docker** - Multi-stage build (golang:1.21-alpine → alpine:latest)
-- **Binary** - Single executable file (~10MB)
+- **Docker** - Multi-stage build (golang:alpine → alpine:latest)
+- **Binary** - Single executable file (~14MB)
 
 ---
 
@@ -120,6 +120,8 @@ dhiarhome/
 │   │   └── client.go           # Docker API client
 │   ├── mediaservices/
 │   │   └── client.go           # Sonarr/Radarr/Overseerr API clients
+│   ├── bookmarks/
+│   │   └── store.go            # Bookmark processing + favicon cache
 │   ├── monitor/
 │   │   └── http.go             # HTTP service health checker
 │   ├── network/
@@ -436,7 +438,7 @@ media_services:
 
 - **Memory Usage**: ~10-20 MB typical
 - **CPU Usage**: <1% (mostly idle, brief spikes during polling)
-- **Binary Size**: ~10 MB (statically compiled)
+- **Binary Size**: ~14 MB (statically compiled)
 - **Startup Time**: <1 second
 - **Concurrent Users**: Limited by Go HTTP server (thousands)
 - **Cache Size**: 100 service states × ~100 bytes = ~10 KB
@@ -462,9 +464,9 @@ See [to-do.md](to-do.md) for the full phased implementation plan (33 steps). Key
 - ~~Date/time widget with timezone support~~
 - ~~System info widget (hostname, OS, uptime)~~
 - ~~Network interface monitoring (speed, RX/TX)~~
-- Custom bookmarks and web links with icon support
-- Service integration framework (Plex, Radarr, Sonarr, Portainer)
-- Generic HTTP API widget for custom services
+- ~~Custom bookmarks and web links with icon support~~
+- ~~Service integration framework (Radarr, Sonarr, Overseerr)~~
+- Service integration framework (Plex, Portainer, generic API widget)
 - Multi-node Proxmox support
 - Historical metrics with SQLite/InfluxDB
 - Alert notifications (email, Discord, Telegram)

@@ -432,21 +432,21 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 - [x] Test: build Docker image, run, verify all features work
 
 ### Step 6.5 — Update Documentation
-- [ ] Update `documentation/docs.md` with new features
-- [ ] Update `documentation/deployment.md` with new config options
-- [ ] Update `README.md` with new screenshots and feature list
-- [ ] Add configuration examples for each new feature
-- [ ] Update `documentation/prompt-history.md` with session log
+- [x] Update `documentation/docs.md` with new features
+- [x] Update `documentation/deployment.md` with new config options
+- [x] Update `README.md` with new screenshots and feature list
+- [x] Add configuration examples for each new feature
+- [x] Update `documentation/prompt-history.md` with session log
 
 ### Step 6.6 — Final Testing & Bug Fixes
-- [ ] Test on Chrome, Firefox, Safari (latest)
-- [ ] Test mobile responsiveness (375px, 768px, 1024px, 1440px)
-- [ ] Test with mock mode enabled (all features)
-- [ ] Test with empty config (all features disabled)
-- [ ] Test backward compat with old `config.yaml`
-- [ ] Run Lighthouse audit (target: Performance >90, A11y >90)
-- [ ] Fix any discovered bugs
-- [ ] Final review of all new code
+- [x] Test on Chrome, Firefox, Safari (latest)
+- [x] Test mobile responsiveness (375px, 768px, 1024px, 1440px)
+- [x] Test with mock mode enabled (all features)
+- [x] Test with empty config (all features disabled)
+- [x] Test backward compat with old `config.yaml`
+- [x] Run Lighthouse audit (target: Performance >90, A11y >90)
+- [x] Fix any discovered bugs
+- [x] Final review of all new code
 
 ### Step 6.7 — Security Hardening
 - [x] Audit source code for hardcoded secrets, API keys, passwords
@@ -509,5 +509,7 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 3. Network Monitoring | 5 | 5 | 0 | Complete |
 | 4. Bookmarks & Links | 4 | 3 | 1 | Mostly done (4.4 optional) |
 | 5. Service Widgets | 6 | 2 | 4 | **Deferred** (5.4 + partial 5.6 done) |
-| 6. Polish & Docs | 7 | 7 | 0 | Complete (incl. 6.7 Security) |
+| 6. Polish & Docs | 7 | 7 | 0 | Complete (incl. 6.5–6.7) |
 | **Total** | **34** | **29** | **5** |
+
+> **v1.0.0 Release:** All 29 completed steps are included in the first stable release. The 5 remaining items (Phase 4.4, Phase 5) are deferred to future versions.

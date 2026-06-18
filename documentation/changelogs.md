@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.0.0] - 2026-06-19 - First Stable Release
+
+### Overview
+dhiarhome v1.0.0 marks the first stable public release. All core features are complete, tested, and documented — ready for production homelab use.
+
+### What's New Since 0.10.1
+No new features — this is a stability and documentation release. All functionality from 0.1.0 through 0.10.1 has been tested and verified across Docker and bare-metal deployments.
+
+### Complete Feature Set
+- **Proxmox VE** — CPU model + cores/threads, RAM, multi-disk, VM/LXC tracking, uptime
+- **Docker** — container status with name filtering
+- **Web services** — HTTP health checks with response times
+- **Media services** — Sonarr, Radarr, Overseerr stats with WebUI links
+- **Network** — per-interface RX/TX speeds (/proc/net/dev)
+- **To-do list** — Alpine.js interactive, persisted to JSON
+- **Weather + time** — Open-Meteo forecast, live clock, timezone support
+- **System info** — hostname, OS, uptime, Go runtime
+- **Bookmarks** — custom links with auto-fetched favicons
+- **Glassmorphism UI** — blur cards, custom backgrounds, accent color
+- **DOM diff swap** — zero flicker on 5s auto-refresh
+- **Config validation** — startup warnings, graceful fallbacks
+- **Security hardening** — CSP headers, rate limiting, path traversal protection
+- **Mock mode** — test everything without real credentials
+- **Single binary** — ~14MB, zero database, no external dependencies
+
+### Files Modified
+- `documentation/changelogs.md` — v1.0.0 release entry
+- `documentation/docs.md` — Updated binary size, project structure, feature status
+- `documentation/to-do.md` — Phase 6 verified complete
+- `documentation/deployment.md` — Updated Go version references, fixed old naming
+- `README.md` — Updated roadmap, bookmarks marked complete
+
+---
+
 ## [0.10.1] - 2026-06-19 - Security Hardening
 
 ### Added
@@ -770,4 +804,4 @@ personalProject-Dashboard/
 | 0.9.0 | Planned | Bookmarks and custom links |
 | 0.10.0 | 2026-06-19 | Phase 6: graceful shutdown, config validation, Dockerfile hardening |
 | 0.10.1 | 2026-06-19 | Security hardening: headers, rate limiting, path traversal, input validation |
-| 1.0.0 | Planned | First stable release with all planned features |
+| 1.0.0 | 2026-06-19 | First stable release with all planned features |

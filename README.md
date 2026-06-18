@@ -14,6 +14,7 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **Docker containers** — status and state
 - **Web services** — uptime with response times
 - **Media services** — Sonarr/Radarr/Overseerr stats with WebUI links
+- **Bookmarks** — custom links with auto-fetched favicons
 - **Network interfaces** — RX/TX speeds per interface
 - **Interactive to-do list** — add, toggle, delete (persisted to JSON)
 - **Weather + time** — combined card with live clock, Open-Meteo weather
@@ -27,11 +28,12 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 
 ## Features
 
-- **Proxmox** — CPU model + cores/threads, RAM, multi-disk, uptime
+- **Proxmox** — CPU model + cores/threads, RAM, multi-disk, VM/LXC, uptime
 - **Docker** — all containers with up/down status
 - **Web services** — health checks with response times
 - **Media services** — Sonarr/Radarr/Overseerr stats, clickable WebUI
 - **Network** — per-interface RX/TX speeds (via /proc/net/dev)
+- **Bookmarks** — custom links with auto-fetched favicons
 - **To-do list** — Alpine.js interactive, persisted to JSON
 - **Weather + time** — live clock, Open-Meteo forecast, timezone support
 - **System info** — hostname, OS, uptime, Go memory
@@ -160,6 +162,7 @@ dhiarhome/
 ├── config-example.yaml        # Template
 ├── Dockerfile                 # Build
 ├── internal/
+│   ├── bookmarks/             # Bookmark processing + favicon cache
 │   ├── cache/                 # Service state cache
 │   ├── config/                # YAML loader
 │   ├── docker/                # Docker API client
@@ -219,9 +222,11 @@ Home servers often have limited resources. Many existing dashboards are heavy an
 - ✅ Network interface monitoring (RX/TX speeds)
 - ✅ Interactive to-do list (Alpine.js)
 - ✅ Media services (Sonarr, Radarr, Overseerr)
-- ⬜ Custom bookmarks and web links
+- ✅ Custom bookmarks and web links
 - ⬜ Additional service integrations (Plex, Portainer)
 - ⬜ Generic HTTP API widget
+
+> **v1.0.0 released** — all planned core features complete. Future work will focus on additional integrations.
 
 ---
 
@@ -233,4 +238,6 @@ This is a personal learning project, but feel free to fork and customize for you
 
 ## License
 
-Personal project for homelab monitoring. Free to modify and use.
+This project is licensed under the [MIT License](LICENSE) — see the [LICENSE](LICENSE) file for details.
+
+Copyright (c) 2026 Dhiar Harianto
