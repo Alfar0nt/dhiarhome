@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.0.1] - 2026-06-19 - Skip TLS Option for Services
+
+### Added
+- **`skip_tls` config option** for monitored web services — allows health checks against services with self-signed TLS certificates
+  - `ServiceConfig.SkipTLS bool` in `internal/config/config.go`
+  - When `true`, `CheckService()` creates a custom `http.Transport` with `InsecureSkipVerify: true`
+  - Default is `false` (secure by default)
+- **Bookmarks configuration reference** added to `documentation/docs.md`
+  - Full YAML example with group/link structure, icon modes, and notes
+  - Includes example groups: Infrastructure, Media
+
+### Files Modified
+- `internal/config/config.go` — Added `SkipTLS bool` field to `ServiceConfig`
+- `internal/monitor/http.go` — Added `skipTLS` parameter, `crypto/tls` import, custom transport
+- `main.go` — Passes `svc.SkipTLS` to `monitor.CheckService()`
+- `config-example.yaml` — Added `skip_tls` example service, fixed `bookmarks: []` → `bookmarks:`
+- `documentation/docs.md` — Added Bookmarks config reference, updated Services section with `skip_tls`
+
+---
+
 ## [1.0.0] - 2026-06-19 - First Stable Release
 
 ### Overview

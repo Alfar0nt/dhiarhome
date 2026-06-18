@@ -319,6 +319,9 @@ services:
     url: "https://example.com"
   - name: "Nextcloud"
     url: "https://nextcloud.example.com"
+  - name: "Self-Signed App"
+    url: "https://192.168.1.100:8443"
+    skip_tls: true        # Skip TLS verification for self-signed certificates
 ```
 
 ### Appearance Section
@@ -408,6 +411,33 @@ media_services:
 ```
 
 > **Note:** Each service requires `name`, `url` (API endpoint), `api_key`, and `webui` (browser-accessible URL). Services are polled every 30 seconds. Mock stats are automatically shown when `proxmox.mock: true` and no `media_services` are configured.
+
+### Bookmarks Section
+```yaml
+bookmarks:
+  - group: "Infrastructure"
+    links:
+      - name: "Proxmox VE"
+        url: "https://192.168.1.100:8006"
+        icon: "server"          # Lucide icon name, image path, or "favicon"
+        new_tab: true            # Open in new tab (default: false)
+      - name: "Portainer"
+        url: "https://192.168.1.100:9443"
+        icon: "container"
+        new_tab: true
+  - group: "Media"
+    links:
+      - name: "Sonarr"
+        url: "https://sonarr.example.com"
+        icon: "tv"
+        new_tab: true
+      - name: "Radarr"
+        url: "https://radarr.example.com"
+        icon: "film"
+        new_tab: true
+```
+
+> **Note:** Groups are flattened in the UI — all links appear in a single section. Internal scrolling activates when there are more than ~10 links. Icons support three modes: Lucide icon name (e.g., `"server"`, `"globe"`, `"tv"`), custom image path, or `"favicon"` to auto-fetch from the URL's favicon.ico.
 
 ---
 

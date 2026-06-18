@@ -1266,6 +1266,81 @@ okay that iss very good. now i think we're good to go to the phase for according
 
 ---
 
+## Session 23: v1.0.0 Release Preparation
+
+**Date:** June 18, 2026
+
+### User Requests (cumulative)
+1. Create a GitHub release description for v1.0.0
+2. Update documentation folder and README for v1.0.0 release
+3. Add MIT license reference to README License section
+
+### Implementation Summary
+
+1. **Release description** — Provided markdown release notes for GitHub Releases page summarizing all features
+
+2. **Documentation updates for v1.0.0:**
+   - `documentation/changelogs.md` — Added v1.0.0 entry with full feature set, updated Version History table
+   - `documentation/to-do.md` — Marked Step 6.5 (docs) and 6.6 (testing) complete, updated Progress Tracker, added v1.0.0 release note
+   - `documentation/docs.md` — Updated binary size 10→14MB, Docker image `golang:1.21-alpine`→`golang:alpine`, added `bookmarks/` to project structure, struck-through completed items in Future Ideas
+   - `documentation/deployment.md` — Fixed old `homelab-dashboard`→`dhiarhome` references (5 places), `./dashboard`→`./dhiarhome` (2 places), Go 1.21.5→1.26.0, `:latest`→`:v1.0.0` for pre-built image
+   - `README.md` — Added bookmarks to feature lists, marked ✅ in roadmap, added v1.0.0 release note, added `bookmarks/` to project structure
+
+3. **MIT License** — Updated README License section to reference the LICENSE file with full copyright notice (Dhiar Harianto, 2026)
+
+### Files Modified
+- `README.md`
+- `documentation/changelogs.md`
+- `documentation/to-do.md`
+- `documentation/docs.md`
+- `documentation/deployment.md`
+
+---
+
+## Session 24: Deployment Troubleshooting & Jellyseerr Fix
+
+**Date:** June 18, 2026
+
+### User Requests (cumulative)
+1. Debug Proxmox API returning 403 Forbidden and Docker socket permission denied
+2. Debug Jellyseerr widget showing blank/stats showing 0
+3. Add `skip_tls` option for services using self-signed SSL certs
+4. Fix bookmarks YAML syntax error (`bookmarks: []`)
+
+### Implementation Summary
+
+**1. Troubleshooting (no code changes):**
+- Proxmox 403: API token needs `PVEAuditor` role assigned at the `/nodes/{node}` path in Proxmox UI
+- Docker permission denied: add user to `docker` group (`sudo usermod -aG docker frank`) or run with `sudo`
+
+**2. Jellyseerr/Overseerr fix:**
+- Bug: `overseerrPageInfo` struct in `internal/mediaservices/client.go` used `json:"total"` but Jellyseerr API returns `"results"` in `pageInfo`
+- Fix: Changed struct tag from `json:"total"` to `json:"results"`
+- Also found: `/api/v1/media/count` returns 405 (not allowed) in Jellyseerr — code handles this gracefully via fallback
+
+**3. `skip_tls` feature:**
+- `internal/config/config.go`: Added `SkipTLS bool` field to `ServiceConfig`
+- `internal/monitor/http.go`: `CheckService()` now accepts `skipTLS bool` param; when true, creates `http.Transport` with `TLSClientConfig: &tls.Config{InsecureSkipVerify: true}`
+- `main.go`: Passes `svc.SkipTLS` to `CheckService()`
+- `config-example.yaml`: Added `skip_tls: true` example, fixed `bookmarks: []` → `bookmarks:`
+- `documentation/docs.md`: Added Bookmarks config reference (groups, links, icons, favicon)
+- `documentation/changelogs.md`: Added v1.0.1 entry
+
+**4. Bookmarks YAML fix:**
+- `bookmarks: []` creates an empty inline array, preventing any list items underneath
+- Fixed to `bookmarks:` (without `[]`)
+
+### Files Modified
+- `internal/mediaservices/client.go` — `json:"total"` → `json:"results"` for `overseerrPageInfo`
+- `internal/config/config.go` — `SkipTLS bool` on `ServiceConfig`
+- `internal/monitor/http.go` — `skipTLS` parameter, `crypto/tls` import, insecure transport
+- `main.go` — Pass `svc.SkipTLS` to `CheckService()`
+- `config-example.yaml` — `skip_tls` example, `bookmarks: []` fix
+- `documentation/changelogs.md` — v1.0.1 entry
+- `documentation/docs.md` — Bookmarks config reference, Services `skip_tls` update
+
+---
+
 ## Notes
 
 - All documentation files are located in the `/documentation` folder

@@ -354,7 +354,7 @@ func pollServices() {
 
 func doPoll() {
 	for _, svc := range appConfig.Services {
-		status, duration := monitor.CheckService(svc.URL)
+		status, duration := monitor.CheckService(svc.URL, svc.SkipTLS)
 		state := cache.ServiceState{
 			Name:         svc.Name,
 			Status:       status,

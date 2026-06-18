@@ -55,8 +55,9 @@ type DockerConfig struct {
 }
 
 type ServiceConfig struct {
-	Name string `yaml:"name"`
-	URL  string `yaml:"url"`
+	Name    string `yaml:"name"`
+	URL     string `yaml:"url"`
+	SkipTLS bool   `yaml:"skip_tls"`
 }
 
 type WidgetsConfig struct {

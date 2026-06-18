@@ -24,6 +24,9 @@ services:
     url: "https://example.com"
   - name: "Nextcloud"
     url: "https://nextcloud.example.com"
+  - name: "Self-Signed App"
+    url: "https://192.168.1.100:8443"
+    skip_tls: true          # Skip TLS verification for self-signed certs
 
 # ─── Appearance ───────────────────────────────────────────────────────
 appearance:
@@ -112,7 +115,7 @@ todos:
 #                  database, home, settings, film (or any image path).
 # Groups are flattened in the UI — all links appear in one section.
 # Internal scrolling activates when there are more than 10 links.
-bookmarks: []
+bookmarks:
   # - group: "Infrastructure"
   #   links:
   #     - name: "Proxmox VE"
