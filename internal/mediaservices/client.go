@@ -138,7 +138,7 @@ func fetchRadarr(svc MediaService, stats *MediaServiceStats) {
 // ── Overseerr ───────────────────────────────────────────
 
 type overseerrPageInfo struct {
-	Total int `json:"total"`
+	Total int `json:"results"`
 }
 
 type overseerrMediaCounts struct {
