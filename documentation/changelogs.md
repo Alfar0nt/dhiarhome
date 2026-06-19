@@ -4,7 +4,7 @@ All notable changes to this project are documented in this file.
 
 ---
 
-## [1.0.1] - 2026-06-19 - Skip TLS Option for Services
+## [1.0.1] - 2026-06-18 - Skip TLS Option for Services
 
 ### Added
 - **`skip_tls` config option** for monitored web services — allows health checks against services with self-signed TLS certificates
@@ -24,7 +24,7 @@ All notable changes to this project are documented in this file.
 
 ---
 
-## [1.0.0] - 2026-06-19 - First Stable Release
+## [1.0.0] - 2026-06-18 - First Stable Release
 
 ### Overview
 dhiarhome v1.0.0 marks the first stable public release. All core features are complete, tested, and documented — ready for production homelab use.
@@ -58,7 +58,7 @@ No new features — this is a stability and documentation release. All functiona
 
 ---
 
-## [0.10.1] - 2026-06-19 - Security Hardening
+## [0.10.1] - 2026-06-18 - Security Hardening
 
 ### Added
 - **Security headers middleware** — applied to all responses via `securityHeaders()` wrapper:
@@ -100,7 +100,7 @@ No new features — this is a stability and documentation release. All functiona
 
 ---
 
-## [0.10.0] - 2026-06-19 - Phase 6: Polish, Performance & Documentation
+## [0.10.0] - 2026-06-18 - Phase 6: Polish, Performance & Documentation
 
 ### Added
 - **Graceful shutdown**: Server handles SIGINT/SIGTERM, stops network monitor, gracefully shuts down HTTP server with 5s timeout
@@ -134,7 +134,7 @@ No new features — this is a stability and documentation release. All functiona
 
 ---
 
-## [0.9.2] - 2026-06-19 - Scrollbar Theme Unification
+## [0.9.2] - 2026-06-18 - Scrollbar Theme Unification
 
 ### Changed
 - **Todo widget scrollbar**: Added `scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent` to match bookmarks, services, and docker widgets
@@ -147,7 +147,7 @@ No new features — this is a stability and documentation release. All functiona
 
 ---
 
-## [0.9.1] - 2026-06-19 - Internal Scrolling & UI Refinements
+## [0.9.1] - 2026-06-18 - Internal Scrolling & UI Refinements
 
 ### Changed
 - **Bookmark icons/text scaled up**: `w-10 h-10` icon boxes with `w-5 h-5` SVGs, `text-[11px]` names, `p-2` padding, `gap-2` — better fills 5×2 grid
@@ -822,6 +822,6 @@ personalProject-Dashboard/
 | 0.8.1 | 2026-06-17 | Widget scroll fix (max-h 72px), mobile input overflow fix (min-w-0), consistent min-h-[190px], bigger widget text/icons |
 | 0.8.2 | 2026-06-17 | Live indicator glass pill, media services polling goroutine, Flex layout for widget cards, responsive sizing |
 | 0.9.0 | Planned | Bookmarks and custom links |
-| 0.10.0 | 2026-06-19 | Phase 6: graceful shutdown, config validation, Dockerfile hardening |
-| 0.10.1 | 2026-06-19 | Security hardening: headers, rate limiting, path traversal, input validation |
-| 1.0.0 | 2026-06-19 | First stable release with all planned features |
+| 0.10.0 | 2026-06-18 | Phase 6: graceful shutdown, config validation, Dockerfile hardening |
+| 0.10.1 | 2026-06-18 | Security hardening: headers, rate limiting, path traversal, input validation |
+| 1.0.0 | 2026-06-18 | First stable release with all planned features |
