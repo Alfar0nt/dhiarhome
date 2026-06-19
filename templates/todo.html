@@ -6,6 +6,7 @@
     ]{{ else }}[]{{ end }},
     newText: '',
     showModal: false,
+    infoOpen: false,
     MAX_TODOS: 15,
     get doneCount() {
         return this.todos.filter(function(t) { return t.done; }).length;
@@ -84,7 +85,7 @@
         if (isYesterday) return 'Yesterday ' + time;
         return d.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' ' + time;
     }
-}" aria-label="{{ .TodoTitle }}">
+}" @toggle-info-open.window="infoOpen = !infoOpen" aria-label="{{ .TodoTitle }}">
 
 <!-- Compact Widget Card -->
 <div class="glass-card p-4 h-full min-h-[190px] flex flex-col">
@@ -97,10 +98,18 @@
         </h2>
         <div class="flex items-center gap-2">
             <span class="text-[10px] text-gray-400 tabular-nums" x-show="todos.length > 0" x-text="doneCount + '/' + todos.length + ' done'"></span>
+            <button @click="infoOpen = !infoOpen" class="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
             <button @click="showModal = true" class="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors" aria-label="Expand todo list" title="Expand">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"></path></svg>
             </button>
         </div>
+    </div>
+
+    <!-- Info panel -->
+    <div x-show="infoOpen" x-cloak class="mb-3 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+        <p>Interactive to-do list. Add tasks via the input field, check them off when done, or delete with the <span class="text-red-400">✕</span> button. Persisted to JSON — data survives restarts.</p>
     </div>
 
     <!-- Add new todo -->

@@ -4,6 +4,46 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [Demo Release] - 2026-06-20 - Public Demo Page Enhancements
+
+### Added
+- **`config-demo.yaml`** — Pre-configured demo config with all mocks enabled, real reachable bookmarks (GitHub, Stack Overflow, Hacker News, Docker Hub, etc.), and Telegram disabled
+- **"Built with dhiarhome — Go · HTMX · Alpine.js" footer** — Tech stack attribution with glass background, GitHub star link, author link, and visitor counter
+- **LocalStorage visitor counter** — Increments on each page load, displayed in footer
+- **Per-widget expandable info sections** — Each dashboard section (Proxmox, Bookmarks, Services, Docker, Media, Weather, Time, System Info, Network, Todo) has its own info button that reveals a description when clicked
+- **"What am I looking at" header button** — Global toggle that opens/closes all per-widget info sections simultaneously via `toggle-info-open` custom event
+- **Footer glass background** — `rounded-xl glass p-4` for better footer visibility against background
+- **Alpine.js `x-cloak` support** — CSS rule added to prevent flash of unstyled Alpine content
+
+### Changed
+- **"?" button replaced** — Changed from a small `?` icon to a labeled "What am I looking at" button with info SVG icon
+- **Centralized info panel removed** — Replaced by per-widget expandable info sections with more specific descriptions
+- **Footer** — Now wrapped in glass-themed container (`rounded-xl glass p-4`) for visual clarity
+- **Header** — Added GitHub and About me buttons, changed title to "Demo dhiarhome"
+
+### Changed
+- **merge-swap fix** — `syncAttrs` no longer syncs `style` attribute (handled by `syncStyle`); `syncStyle` now skips elements with `x-show` (managed by Alpine.js), preventing info panels from flashing on HTMX data refresh
+- **Footer background** — Changed from undefined `glass` class to `glass-inner p-4` for proper visible background
+- **Footer width** — Constrained with `max-w-lg sm:max-w-2xl mx-auto` so it doesn't stretch full-width on desktop
+- **Header mobile layout** — Header now stacks vertically on mobile (`flex-col sm:flex-row`), button row uses `flex-wrap gap-2` instead of `space-x-3` to prevent overflow and edge-flush buttons
+- **"What am I looking at" button** — Text hidden on mobile (`hidden sm:inline`), icon slightly larger on mobile for touch targets
+
+### Fixed
+- **Info panel flash on data refresh** — merge-swap `syncStyle()` was overwriting Alpine's `display: none` (set by `x-show`) with the new element's empty style attribute. Fixed by skipping style sync on elements with `x-show`.
+
+### Files Modified
+- `static/index.html` — merge-swap syncAttrs/syncStyle fixes, footer glass-inner + max-width, header mobile-responsive layout, "What am I looking at" responsive text
+- `templates/status.html` — Per-widget info for Proxmox, Bookmarks, Services, Docker sections
+- `templates/mediaservices.html` — Per-widget info for Media Management section
+- `templates/widgets/widgets.html` — Per-widget info for Weather, DateTime, System Info, Network sections
+- `templates/todo.html` — Per-widget info for Todo section
+- `config-demo.yaml` — Created with full demo-friendly defaults
+
+### Files Created
+- `config-demo.yaml` — Ready-to-use demo configuration with real-reachable bookmarks
+
+---
+
 ## [1.4.3] - 2026-06-20 - Command-Line Flags (Config Path & Port)
 
 ### Added

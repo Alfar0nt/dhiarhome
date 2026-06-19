@@ -7,7 +7,15 @@
 
     {{ if eq .Type "weather_time" }}
     <!-- Combined Weather + Time Widget -->
-    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col justify-between" tabindex="0" aria-label="Weather and time: {{ index .Values "condition" }}, {{ index .Values "temperature" }}, {{ index .Values "time" }}">
+    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen" tabindex="0" aria-label="Weather and time: {{ index .Values "condition" }}, {{ index .Values "temperature" }}, {{ index .Values "time" }}">
+        <div class="flex items-center justify-end mb-1">
+            <button @click.stop="infoOpen = !infoOpen" type="button" class="text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+        </div>
+        <div x-show="infoOpen" x-cloak class="mb-2 p-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+            <p>Live weather forecast from Open-Meteo (free API) and current time. Refreshes every 5 seconds.</p>
+        </div>
         <!-- Time row -->
         <div>
             <div class="flex items-baseline justify-between mb-1">
@@ -17,7 +25,7 @@
             <p class="text-xs text-gray-400 truncate" id="widget-date">{{ index .Values "date" }}</p>
         </div>
 
-        <div>
+        <div class="mt-auto">
             <div class="my-2 border-t border-white/5"></div>
 
             <!-- Weather row -->
@@ -32,10 +40,15 @@
 
     {{ if eq .Type "weather" }}
     <!-- Weather Widget (standalone, when datetime is disabled) -->
-    <div class="glass-card p-4 h-full min-h-[190px]" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
+    <div class="glass-card p-4 h-full min-h-[190px]" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
         <div class="flex items-center justify-between mb-1">
             <p class="metric-label text-xs">{{ .Label }}</p>
-            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
+            <button @click.stop="infoOpen = !infoOpen" type="button" class="text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+        </div>
+        <div x-show="infoOpen" x-cloak class="mb-2 p-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+            <p>Live weather forecast from Open-Meteo (free API). Shows temperature, conditions, and wind speed.</p>
         </div>
         <p class="text-xl font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
         <p class="text-xs text-gray-400 mt-0.5">{{ index .Values "condition" }}</p>
@@ -45,10 +58,15 @@
 
     {{ if eq .Type "datetime" }}
     <!-- DateTime Widget (standalone, when weather is disabled) -->
-    <div class="glass-card p-4 h-full min-h-[190px]" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
+    <div class="glass-card p-4 h-full min-h-[190px]" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
         <div class="flex items-center justify-between mb-1">
             <p class="metric-label text-xs">{{ index .Values "day" }}</p>
-            <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
+            <button @click.stop="infoOpen = !infoOpen" type="button" class="text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+        </div>
+        <div x-show="infoOpen" x-cloak class="mb-2 p-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+            <p>Current date and time in your configured timezone. Client-side clock updates every second.</p>
         </div>
         <p class="text-xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</p>
         <p class="text-xs text-gray-400 mt-0.5" id="widget-date">{{ index .Values "date" }}</p>
@@ -58,11 +76,16 @@
 
     {{ if eq .Type "system_info" }}
     <!-- System Info Widget (compact) -->
-    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col justify-between" tabindex="0" aria-label="System info: {{ index .Values "hostname" }}, uptime {{ index .Values "uptime" }}">
+    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col justify-between" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen" tabindex="0" aria-label="System info: {{ index .Values "hostname" }}, uptime {{ index .Values "uptime" }}">
         <div>
             <div class="flex items-center justify-between mb-1">
                 <p class="metric-label text-xs">{{ .Label }}</p>
-                <span class="text-xl" aria-hidden="true">{{ .Icon }}</span>
+                <button @click.stop="infoOpen = !infoOpen" type="button" class="text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+            </div>
+            <div x-show="infoOpen" x-cloak class="mb-2 p-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+                <p>Host system information: hostname, operating system, server uptime, and Go runtime memory usage.</p>
             </div>
             <p class="text-base font-semibold text-white truncate">{{ index .Values "hostname" }}</p>
             <p class="text-xs text-gray-400 truncate">{{ index .Values "os" }}</p>
@@ -84,13 +107,16 @@
 
     {{ if .Network }}
     <!-- Network Summary Widget (compact, 4th card) -->
-    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col justify-between" tabindex="0" aria-label="Network monitor: {{ len .Network }} interfaces">
+    <div class="glass-card p-4 h-full min-h-[190px] flex flex-col justify-between" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen" tabindex="0" aria-label="Network monitor: {{ len .Network }} interfaces">
         <div>
             <div class="flex items-center justify-between mb-2">
                 <p class="metric-label text-xs">Network</p>
-                <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.858 15.355-5.858 21.213 0"></path>
-                </svg>
+                <button @click.stop="infoOpen = !infoOpen" type="button" class="text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+            </div>
+            <div x-show="infoOpen" x-cloak class="mb-2 p-2 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+                <p>Real-time network interface speeds: <span class="text-blue-400">↓ RX</span> (receive) and <span class="text-emerald-400">↑ TX</span> (transmit). Sampled from <code class="text-gray-400">/proc/net/dev</code>.</p>
             </div>
             {{ range .Network }}
             <div class="{{ if gt (len $.Network) 1 }}mb-2 last:mb-0{{ end }}">

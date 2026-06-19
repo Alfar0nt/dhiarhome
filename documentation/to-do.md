@@ -764,6 +764,10 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | B. Backlog | 2 | 0 | 2 | **Pending** |
 | **Total** | **60** | **44** | **16** |
 
+> **Demo Release:** Public demo page enhancements — `config-demo.yaml` with full mock setup, real-reachable bookmarks, per-widget expandable info sections, glass footer with tech stack attribution and visitor counter, mobile-responsive "What am I looking at" header button.
+> **v1.4.3:** Command-line flags `--config` and `--addr` for multi-instance support.
+> **v1.4.2:** Security hardening — binaries stripped, config permissions restricted, full codebase audit.
+> **v1.4.1:** UI toast notifications for service/Docker transitions, Telegram URL parameter in alert messages.
 > **v1.4.0:** Phase 11 complete — Telegram notifications for service and Docker container state transitions with cooldown, silent hours, mock mode, and test endpoint.
 > **v1.3.2:** Phase 10 complete — inline SVG favicon, configurable logo (file/URL), header logo, bigger widget text across all templates, dark/light theme toggle with localStorage persistence.
 > **v1.3.1:** UI refinements — full-screen todo modal with date tracking, CPU/Memory widget vertical stretch and divider.

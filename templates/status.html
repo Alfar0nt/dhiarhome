@@ -36,11 +36,17 @@
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
 
     <!-- Proxmox Metrics -->
-    <div class="glass-card p-6 col-span-1 md:col-span-3">
+    <div class="glass-card p-6 col-span-1 md:col-span-3" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen">
         <h2 class="text-2xl font-bold text-white mb-5 flex items-center">
             <svg class="w-7 h-7 mr-2 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
             <span>Proxmox Server</span>
+            <button @click.stop="infoOpen = !infoOpen" type="button" class="ml-2 text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
         </h2>
+        <div x-show="infoOpen" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300 space-y-1">
+            <p><strong class="text-white">Proxmox VE</strong> hypervisor metrics: CPU usage, memory, swap, load averages, disk utilization, and VM/LXC container status.</p>
+        </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 
             <!-- CPU + Memory + Swap (Combined) -->
@@ -230,7 +236,7 @@
     {{ template "mediaservices.html" . }}
 
     <!-- Bookmarks + Monitored Services (Combined) -->
-    <div class="glass-card p-6 col-span-1 md:col-span-2 md:min-h-[320px]">
+    <div class="glass-card p-6 col-span-1 md:col-span-2 md:min-h-[320px]" x-data="{ infoBookmarks: false, infoServices: false }" @toggle-info-open.window="infoBookmarks = !infoBookmarks; infoServices = !infoServices">
         <div class="flex flex-col md:flex-row gap-6 h-full">
 
             <!-- Bookmarks (Left) -->
@@ -240,7 +246,13 @@
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z"></path>
                     </svg>
                     <span>Bookmarks</span>
+                    <button @click.stop="infoBookmarks = !infoBookmarks" type="button" class="ml-2 text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </button>
                 </h2>
+                <div x-show="infoBookmarks" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+                    <p>Quick-access links to frequently used services. Click to open in a new tab. Icons are auto-fetched favicons or themed SVGs.</p>
+                </div>
                 {{ template "bookmarks" . }}
                 {{ if not .BookmarkGroups }}
                 <p class="text-gray-500 text-xs">No bookmarks configured.</p>
@@ -256,7 +268,13 @@
                 <h2 class="text-xl font-bold text-white mb-4 flex items-center">
                     <svg class="w-6 h-6 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
                     <span>Services</span>
+                    <button @click.stop="infoServices = !infoServices" type="button" class="ml-2 text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </button>
                 </h2>
+                <div x-show="infoServices" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+                    <p>Uptime monitoring for web services. Shows <span class="text-green-400">Online</span> / <span class="text-red-400">Offline</span> status with response time. Green ping = healthy.</p>
+                </div>
                 <div class="space-y-2 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
                     {{ range .Services }}
                     <div class="flex items-center justify-between p-2.5 glass-inner group" tabindex="0" aria-label="{{ .Name }}: {{ .Status }}, response time {{ .ResponseTime }}">
@@ -290,11 +308,17 @@
     </div>
 
     <!-- Docker Containers -->
-    <div class="glass-card p-6 col-span-1 md:min-h-[320px]">
+    <div class="glass-card p-6 col-span-1 md:min-h-[320px]" x-data="{ infoOpen: false }" @toggle-info-open.window="infoOpen = !infoOpen">
         <h2 class="text-2xl font-bold text-white mb-5 flex items-center">
             <svg class="w-7 h-7 mr-2 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path></svg>
             <span>Docker Services</span>
+            <button @click.stop="infoOpen = !infoOpen" type="button" class="ml-2 text-gray-500 hover:text-white transition-colors" aria-label="Info" title="What is this?">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
         </h2>
+        <div x-show="infoOpen" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+            <p>Container runtime status from Docker. Shows <span class="text-cyan-400">Up</span> (running) or <span class="text-gray-400">Down</span> (stopped/exited) for each container.</p>
+        </div>
         <div class="space-y-3 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
             {{ range .Containers }}
             <div class="p-3 glass-inner" tabindex="0" aria-label="Container {{ range .Names }}{{ . }}{{ end }}: {{ .State }}">

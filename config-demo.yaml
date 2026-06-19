@@ -1,0 +1,146 @@
+proxmox:
+  url: "https://192.168.1.100:8006/api2/json"
+  node_name: "pve"
+  token_id: "root@pam!dashboard"
+  token_secret: "00000000-0000-0000-0000-000000000000"
+  mock: true
+  extra_disks:
+    - mountpoint: "/mnt/data"
+      label: "Storage"
+      total: "8TB"
+      used: "3.2TB"
+      auto_detect: false
+    - mountpoint: "/mnt/backup"
+      label: "Backups"
+      total: "4TB"
+      used: "1.1TB"
+      auto_detect: false
+
+docker:
+  socket: "unix:///var/run/docker.sock"
+  monitor_containers:
+    - "nginx"
+    - "pihole"
+    - "portainer"
+    - "plex"
+    - "nextcloud"
+
+services:
+  - name: "Personal Website"
+    url: "https://example.com"
+  - name: "GitHub"
+    url: "https://github.com"
+  - name: "Stack Overflow"
+    url: "https://stackoverflow.com"
+  - name: "Reddit"
+    url: "https://www.reddit.com"
+  - name: "Docker Hub"
+    url: "https://hub.docker.com"
+  - name: "Hacker News"
+    url: "https://news.ycombinator.com"
+
+appearance:
+  background_image: ""
+  background_url: ""
+  background_opacity: 0.3
+  background_blur: 5
+  logo: ""
+  theme: "dark"
+  card_opacity: 0.6
+  card_blur: 12
+  accent_color: "#3b82f6"
+
+widgets:
+  weather:
+    enabled: true
+    latitude: 40.7128
+    longitude: -74.0060
+    units: "celsius"
+    cache_minutes: 15
+    mock: true
+  datetime:
+    enabled: true
+    timezone: "America/New_York"
+    format_24h: false
+  system_info:
+    enabled: true
+  custom_text:
+    enabled: true
+    title: "Welcome to dhiarhome"
+    content: "This is a demo instance showcasing the dhiarhome dashboard. All data is mocked — no real servers required."
+
+network:
+  enabled: true
+  show_speed: true
+  show_total_transfer: true
+  update_interval: 3
+  mock: true
+  interfaces:
+    - name: "eth0"
+      label: "Primary"
+    - name: "wlan0"
+      label: "WiFi"
+
+media_services: []
+
+notifications:
+  telegram:
+    bot_token: ""
+    chat_id: ""
+    message_thread_id: 0
+    notify_up: false
+    notify_down: false
+    cooldown: 5
+    silent_hours: []
+    mock: false
+
+todos:
+  enabled: true
+  file_path: "data/todos.json"
+  title: "To-Do"
+
+bookmarks:
+  - group: "Dev & Community"
+    links:
+      - name: "GitHub"
+        url: "https://github.com"
+        icon: "github"
+        new_tab: true
+      - name: "Stack Overflow"
+        url: "https://stackoverflow.com"
+        icon: "server"
+        new_tab: true
+      - name: "Hacker News"
+        url: "https://news.ycombinator.com"
+        icon: "globe"
+        new_tab: true
+      - name: "Reddit"
+        url: "https://www.reddit.com"
+        icon: "globe"
+        new_tab: true
+      - name: "Docker Hub"
+        url: "https://hub.docker.com"
+        icon: "container"
+        new_tab: true
+      - name: "Go Package Index"
+        url: "https://pkg.go.dev"
+        icon: "server"
+        new_tab: true
+  - group: "Tools"
+    links:
+      - name: "JSON Formatter"
+        url: "https://jsonformatter.org"
+        icon: "settings"
+        new_tab: true
+      - name: "Regex101"
+        url: "https://regex101.com"
+        icon: "settings"
+        new_tab: true
+      - name: "CodePen"
+        url: "https://codepen.io"
+        icon: "monitor"
+        new_tab: true
+      - name: "Explain Shell"
+        url: "https://explainshell.com"
+        icon: "server"
+        new_tab: true

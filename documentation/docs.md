@@ -88,6 +88,15 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **Bigger widget text** — All primary metric values increased from `text-sm` to `text-base`, section titles from `text-lg`/`text-xl` to `text-xl`/`text-2xl`, labels from `text-[10px]`/`text-[11px]` to `text-xs`
 - **Metric label CSS** — `.metric-label` font-size increased from `0.6875rem` to `0.75rem`
 
+### 9. Demo Page Features
+- **Per-widget expandable info panels** — Each section (Proxmox, Bookmarks, Services, Docker, Media, Weather, Time, System Info, Network, Todo) has an info button that reveals a description of what the widget shows
+- **Global "What am I looking at" toggle** — Header button dispatches a `toggle-info-open` custom event that opens/closes all per-widget info panels simultaneously
+- **Footer attribution** — Glass-inner footer with "Built with dhiarhome — Go · HTMX · Alpine.js" tech stack, GitHub star link, and "About the author" link
+- **Visitor counter** — localStorage-based page visit counter displayed in the footer
+- **`config-demo.yaml`** — Pre-configured demo config with all mocks enabled, real-reachable bookmarks (GitHub, Stack Overflow, Reddit, Docker Hub, etc.), and Telegram disabled
+- **Mobile-responsive header** — Buttons stack vertically on mobile with `flex-wrap` to prevent edge overflow; "What am I looking at" shows text on desktop, icon-only on mobile
+- **merge-swap compatibility** — Custom `syncAttrs`/`syncStyle` guards prevent Alpine.js `x-show` state from being overwritten on HTMX data refresh, fixing info panel flash
+
 ---
 
 ## Technology Stack
