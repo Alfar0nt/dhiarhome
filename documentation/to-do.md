@@ -459,86 +459,112 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 
 ---
 
-## Phase 7: Swap, Kernel & Version Display
+## Phase 7: Proxmox API Enrichment (Swap, Load, Kernel & Version)
 
-### Step 7.1 — Parse Swap from Proxmox API
-- [ ] Add `Swap` struct (Total, Used, Free) to `NodeStatus` in `internal/proxmox/client.go` with `json:"swap"` tag
-- [ ] Parse `kversion` and `pveversion` fields from the node status API response
-- [ ] Add these fields to `DashboardData` in `main.go`
-- [ ] Add mock data for swap, kernel, and PVE version in `getMockStatus()`
+### Step 7.1 — Parse Additional Fields from Proxmox API
+- [x] Add `Swap` struct (Total, Used, Free) to `NodeStatus` in `internal/proxmox/client.go`:
+  ```go
+  Swap struct {
+      Total int64 `json:"total"`
+      Used  int64 `json:"used"`
+      Free  int64 `json:"free"`
+  } `json:"swap"`
+  ```
+- [x] Add `LoadAvg` field — the API returns `loadavg` as `[1min, 5min, 15min]` array
+- [x] Add `PVEVersion` string field (`json:"pveversion"`) — Proxmox VE version
+- [x] Add `KernelVersion` string field (`json:"kversion"`) — running kernel version
+- [x] Add all new fields to `DashboardData` in `main.go`
+- [x] Add mock data for swap, load average, kernel, and PVE version in `getMockStatus()`
 
-### Step 7.2 — Display Swap, Kernel & Version in UI
-- [ ] Update `templates/status.html` to show swap usage bar in the Memory section (or as a separate sub-section)
-- [ ] Add kernel version and PVE version below the CPU model or in a small info line
-- [ ] Responsive layout — stack swap under memory on mobile
-- [ ] ARIA labels for swap meter
+### Step 7.2 — Display Swap, Load & Version in UI
+- [x] Update `templates/status.html` to show swap usage bar below Memory section (same style as memory bar)
+- [x] Add load average display (1m / 5m / 15m) near CPU section — useful at a glance
+- [x] Add kernel version and PVE version as a subtle info line (e.g., below CPU model or in card footer)
+- [x] Responsive layout — stack swap under memory on mobile
+- [x] ARIA labels for swap meter and load average
+- [x] Color-code swap bar (green → yellow → red) matching memory bar thresholds
 
 ### Step 7.3 — Update Documentation
-- [ ] Update `documentation/docs.md` with swap/kernel/version config reference and feature description
-- [ ] Update `config-example.yaml` with any new config options (if added)
-- [ ] Update `documentation/to-do.md` — Phase 7 marked complete
+- [x] Update `documentation/docs.md` with swap/load/version feature description
+- [x] Update `config-example.yaml` with any new config options (if added)
+- [x] Update `documentation/to-do.md` — Phase 7 marked complete
 
 ---
 
-## Phase 8: Manual Disk Monitoring in Config
+## Phase 8: Manual & Filesystem Disk Monitoring
 
 ### Step 8.1 — Add Extra Disks Config
-- [ ] Add `ExtraDisks []ExtraDiskConfig` to `config.go`:
+- [x] Add `ExtraDisks []ExtraDiskConfig` to `config.go`:
   ```go
   type ExtraDiskConfig struct {
-      Mountpoint string `yaml:"mountpoint"`
-      Total      string `yaml:"total"`  // e.g. "500GB", "1TB"
-      Used       string `yaml:"used"`   // e.g. "200GB"
+      Mountpoint string `yaml:"mountpoint"` // required: e.g. "/mnt/data"
+      Label      string `yaml:"label"`      // optional: friendly name (defaults to mountpoint)
+      Total      string `yaml:"total"`      // optional: manual override, e.g. "500GB", "1TB"
+      Used       string `yaml:"used"`       // optional: manual override, e.g. "200GB"
+      AutoDetect bool   `yaml:"auto_detect"` // if true (default), read from filesystem via statfs
   }
   ```
-- [ ] Parse human-readable sizes (GB, TB) into bytes in config validation
-- [ ] Merge extra disks into `Proxmox.Disks` alongside API-fetched disks
+- [x] Parse human-readable sizes (GB, TB) into bytes in config validation
+- [x] When `AutoDetect` is true and `Total`/`Used` are empty, use `syscall.Statfs` to read actual disk usage from the mount point at runtime
+- [x] When `Total`/`Used` are provided manually, use static values (for remote/unmounted disks)
+- [x] Merge extra disks into `Proxmox.Disks` alongside API-fetched disks (skip duplicates by mountpoint)
+- [x] Add `skip_tls` support for the Proxmox API connection (already present via `InsecureSkipVerify: true`)
 
 ### Step 8.2 — Update Mock Data
-- [ ] Add sample extra disks to mock config for testing
-- [ ] Ensure merge logic works when both API disks and extra disks are present
+- [x] Add sample extra disks to mock config for testing (both auto-detect and static modes)
+- [x] Ensure merge logic works when both API disks and extra disks are present
+- [x] Ensure deduplication: if an extra disk mountpoint matches an API-reported disk, skip it
 
 ### Step 8.3 — Update Documentation
-- [ ] Update `documentation/docs.md` with `extra_disks` config reference
-- [ ] Update `config-example.yaml` with example extra disks section
-- [ ] Update `documentation/to-do.md` — Phase 8 marked complete
+- [x] Update `documentation/docs.md` with `extra_disks` config reference (explain auto-detect vs manual)
+- [x] Update `config-example.yaml` with example extra disks section
+- [x] Update `documentation/to-do.md` — Phase 8 marked complete
 
 ---
 
-## Phase 9: Remote Docker Socket Support
+## Phase 9: Remote Docker & Portainer Support
+
+> **Note:** The existing Docker client (`internal/docker/client.go`) already supports `unix://`, `tcp://`, and `http(s)://` endpoints.
+> This phase adds the missing pieces: TLS client certificates, `skip_tls` option, and Portainer API integration.
 
 ### Step 9.1 — Add Docker Connection Config
-- [ ] Extend `DockerConfig` in `internal/config/config.go`:
+- [x] Extend `DockerConfig` in `internal/config/config.go`:
   ```go
   type DockerConfig struct {
       Socket string `yaml:"socket"`  // existing: "unix:///var/run/docker.sock"
       // NEW options:
-      Host   string `yaml:"host"`    // e.g. "https://192.168.1.100:2376"
-      TLS    bool   `yaml:"tls"`     // enable TLS client certs
-      PortainerURL   string `yaml:"portainer_url"`    // e.g. "https://portainer.example.com"
+      SkipTLS        bool   `yaml:"skip_tls"`         // skip TLS verification for remote Docker
+      TLSCACert      string `yaml:"tls_ca_cert"`      // path to CA cert (optional)
+      TLSCert        string `yaml:"tls_cert"`          // path to client cert
+      TLSKey         string `yaml:"tls_key"`           // path to client key
+      PortainerURL   string `yaml:"portainer_url"`     // e.g. "https://portainer.example.com"
       PortainerKey   string `yaml:"portainer_api_key"` // Portainer API key
+      PortainerEnvID int    `yaml:"portainer_env_id"`  // Portainer environment/endpoint ID
   }
   ```
-- [ ] Update `internal/docker/client.go` to support:
-  - Unix socket (existing)
-  - TCP/TLS connection to remote Docker daemon
-  - Portainer API proxy (`/api/endpoints/{id}/docker/containers/json`)
+- [x] Update `internal/docker/client.go` to support:
+  - TLS client certificates (load CA + client cert/key when configured)
+  - `skip_tls` flag for self-signed certs on remote Docker daemons
+  - Portainer API proxy (`GET /api/endpoints/{env_id}/docker/containers/json` with `X-API-Key` header)
+- [x] Add connection priority: Portainer > Remote Docker (TCP/TLS) > Local socket
+- [x] Add mock data support for Portainer responses
 
 ### Step 9.2 — Update Documentation
-- [ ] Update `documentation/docs.md` with remote Docker config reference
-- [ ] Update `config-example.yaml` with examples for each connection method
-- [ ] Update `documentation/to-do.md` — Phase 9 marked complete
+- [x] Update `documentation/docs.md` with remote Docker and Portainer config reference
+- [x] Update `config-example.yaml` with examples for each connection method (socket, TCP, TLS, Portainer)
+- [x] Update `documentation/to-do.md` — Phase 9 marked complete
 
 ---
 
-## Phase 10: UI Refinements
+## Phase 10: UI Refinements & Theme Toggle
 
-### Step 10.1 — Header Logo in Tab Title
-- [ ] Update `static/index.html` to add a favicon/logo in the browser tab title
-- [ ] Add a `<link rel="icon">` tag pointing to a configurable or built-in logo
-- [ ] Optionally add a small logo next to the "dhiarhome" text in the page header
+### Step 10.1 — Favicon & Header Logo
+- [ ] Add a built-in SVG favicon to `static/` (or `data/icons/`)
+- [ ] Update `static/index.html` to add `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`
+- [ ] Optionally add config option `appearance.favicon` to allow custom favicon path/URL
+- [ ] Add a small logo next to the "dhiarhome" text in the page header (optional)
 
-### Step 10.2 — Bigger Widget Text
+### Step 10.2 — Bigger Widget Text & Readability
 - [ ] Increase font sizes across `templates/status.html`:
   - CPU & Memory: title, percentage, GB values
   - Virtualization: VM/LXC counts
@@ -547,36 +573,53 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 - [ ] Adjust card padding and spacing to accommodate bigger text
 - [ ] Test responsiveness — ensure no overflow on mobile
 
-### Step 10.3 — Update Documentation
-- [ ] Update `documentation/docs.md` with UI changes
+### Step 10.3 — Dark/Light Theme Toggle
+- [ ] Add CSS variables for a light theme alongside existing dark theme
+- [ ] Add a toggle button (sun/moon icon) in the page header
+- [ ] Persist theme choice in `localStorage` (client-side)
+- [ ] Default to `appearance.theme` from config, allow user override via toggle
+- [ ] Ensure all glassmorphism effects look good in both themes
+
+### Step 10.4 — Update Documentation
+- [ ] Update `documentation/docs.md` with UI changes and theme toggle
+- [ ] Update `config-example.yaml` with favicon config (if added)
 - [ ] Update `documentation/to-do.md` — Phase 10 marked complete
 
 ---
 
-## Phase 11: Telegram Notification on Service Down
+## Phase 11: Telegram Notifications (Service & Container Alerts)
 
-### Step 11.1 — Add Telegram Config
+### Step 11.1 — Add Notifications Config
 - [ ] Add `Notifications` section to `internal/config/config.go`:
   ```go
   type NotificationsConfig struct {
       Telegram TelegramConfig `yaml:"telegram"`
   }
   type TelegramConfig struct {
-      Enabled  bool   `yaml:"enabled"`
-      BotToken string `yaml:"bot_token"`   // Telegram bot token
-      ChatID   string `yaml:"chat_id"`     // Telegram chat/group ID
+      Enabled     bool   `yaml:"enabled"`
+      BotToken    string `yaml:"bot_token"`      // Telegram bot token
+      ChatID      string `yaml:"chat_id"`        // Telegram chat/group/channel ID
+      NotifyUp    bool   `yaml:"notify_up"`      // notify when service recovers (default: true)
+      NotifyDown  bool   `yaml:"notify_down"`    // notify when service goes down (default: true)
+      Cooldown    int    `yaml:"cooldown"`       // minutes between repeat alerts (default: 5)
+      SilentHours []int  `yaml:"silent_hours"`   // optional: hours to suppress (e.g., [23,0,1] for night)
   }
   ```
 
 ### Step 11.2 — Implement Telegram Notifier
 - [ ] Create `internal/notifications/telegram.go`:
   - `SendMessage(botToken, chatID, message string)` — HTTP POST to `https://api.telegram.org/bot{token}/sendMessage`
-  - Format message with service name, status, response time, timestamp
+  - Support `parse_mode: HTML` for formatted messages (bold service name, status emoji)
+  - Format message with: service name, status (up/down), response time, timestamp
 - [ ] Integrate into `doPoll()` in `main.go`:
-  - Track previous service states in a map
-  - When a service transitions from Online to Offline, send a Telegram alert
-  - Rate-limit: don't resend within 5 minutes for the same service
-- [ ] Mock/dry-run mode for testing without real Telegram tokens
+  - Track previous service states in a `map[string]string` (name → last known status)
+  - When a service transitions **Online → Offline**, send a down alert (if `notify_down`)
+  - When a service transitions **Offline → Online**, send a recovery alert (if `notify_up`)
+  - Rate-limit: respect `cooldown` — don't resend within N minutes for the same service
+  - Optional: suppress notifications during `silent_hours`
+- [ ] Also monitor Docker container state transitions (running → exited, exited → running)
+- [ ] Mock/dry-run mode for testing without real Telegram tokens (log messages to stdout)
+- [ ] Add a `/api/notifications/test` endpoint to send a test message manually
 
 ### Step 11.3 — Update Documentation
 - [ ] Update `documentation/docs.md` with Telegram notification config reference
@@ -585,24 +628,46 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 
 ---
 
-## Phase 12: Graph Report Support (Optional)
+## Phase 12: Historical Graphs & Long-Term Monitoring
 
-### Step 12.1 — Design Graph Data Storage
-- [ ] Decide on storage: InfluxDB, SQLite, or JSON file append
-- [ ] Create `internal/history/store.go` for time-series data:
-  - CPU, memory, disk usage snapshots at configurable intervals (e.g., every 5 min)
-  - Keep rolling window (e.g., 24 hours, 7 days, 30 days)
-- [ ] Config option to enable/disable history recording
+### Step 12.1 — Design & Implement Graph Data Storage (SQLite)
+- [ ] Use **SQLite** as the time-series store (best fit: single binary, no external dependencies, file-based)
+- [ ] Add `go-sqlite3` or `modernc.org/sqlite` (pure Go, no CGO) as a dependency
+- [ ] Create `internal/history/store.go`:
+  - `Open(dbPath string)` — create/open SQLite database
+  - `Record(metric string, value float64, timestamp time.Time)` — insert data point
+  - `Query(metric string, from, to time.Time)` — fetch data points for a time range
+  - `Prune(retention time.Duration)` — delete data older than retention window
+- [ ] Schema: `metrics (id, name, value, recorded_at)` with index on `(name, recorded_at)`
+- [ ] Config options:
+  ```go
+  type HistoryConfig struct {
+      Enabled       bool   `yaml:"enabled"`
+      DBPath        string `yaml:"db_path"`         // default: "data/history.db"
+      Interval      int    `yaml:"interval"`        // seconds between snapshots (default: 300 = 5 min)
+      RetentionDays int    `yaml:"retention_days"`  // default: 30
+  }
+  ```
+- [ ] Record CPU, memory, swap, disk usage, and network speeds at configured interval
+- [ ] Start background goroutine for periodic recording + pruning
 
-### Step 12.2 — Implement Graph Rendering
-- [ ] Add a charting library: lightweight inline SVG or Canvas (no heavy JS lib if possible)
-- [ ] Create `templates/graphs.html` template with time-range selector (1h, 6h, 24h, 7d)
-- [ ] Add `/api/graphs/cpu`, `/api/graphs/memory`, `/api/graphs/disk` endpoints returning JSON
-- [ ] Render line charts for each metric inside the Proxmox section
+### Step 12.2 — Implement Graph UI
+- [ ] Add a lightweight charting library: **uPlot** (tiny, fast, no dependencies) or inline SVG sparklines
+- [ ] Create `templates/graphs.html` template with:
+  - Time-range selector buttons: 1h, 6h, 24h, 7d, 30d
+  - Line charts for: CPU %, Memory %, Swap %, Disk %, Network RX/TX
+  - Hover tooltip showing exact value + timestamp
+- [ ] Add JSON API endpoints:
+  - `GET /api/graphs/cpu?range=24h`
+  - `GET /api/graphs/memory?range=7d`
+  - `GET /api/graphs/disk?range=30d`
+  - `GET /api/graphs/network?range=24h`
+- [ ] Render graphs in a collapsible section below the Proxmox metrics (or as a dedicated tab)
+- [ ] Responsive: full-width charts on mobile, side-by-side on desktop
 
 ### Step 12.3 — Update Documentation
-- [ ] Update `documentation/docs.md` with graph config reference
-- [ ] Update `config-example.yaml` with graph section (commented out)
+- [ ] Update `documentation/docs.md` with graph/history config reference
+- [ ] Update `config-example.yaml` with history section (commented out)
 - [ ] Update `documentation/to-do.md` — Phase 12 marked complete
 
 ---
@@ -645,22 +710,23 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 6.5 | `documentation/*.md`, `README.md` |
 | 6.6 | All files (testing/fixes) |
 | 6.7 | `main.go`, `Dockerfile` (security hardening) |
-| 7.1 | `internal/proxmox/client.go`, `main.go` — swap, kernel, version parsing |
-| 7.2 | `templates/status.html` — swap bar, kernel/version display |
+| 7.1 | `internal/proxmox/client.go`, `main.go` — swap, load avg, kernel, version parsing |
+| 7.2 | `templates/status.html` — swap bar, load avg, kernel/version display |
 | 7.3 | `documentation/docs.md`, `config-example.yaml` |
-| 8.1 | `internal/config/config.go` — ExtraDisks config |
-| 8.2 | `main.go` — merge extra disks into Proxmox data |
+| 8.1 | `internal/config/config.go` — ExtraDisks config with auto-detect + `ParseSize()` |
+| 8.2 | `main.go`, `internal/proxmox/client.go` — merge extra disks, `ReadDiskUsage()`, dedup |
 | 8.3 | `documentation/docs.md`, `config-example.yaml` |
-| 9.1 | `internal/config/config.go`, `internal/docker/client.go` — remote Docker |
+| 9.1 | `internal/config/config.go`, `internal/docker/client.go` — TLS, skip_tls, Portainer |
 | 9.2 | `documentation/docs.md`, `config-example.yaml` |
-| 10.1 | `static/index.html` — favicon/logo in tab title |
+| 10.1 | `static/index.html`, `static/favicon.svg` — favicon/logo in tab title |
 | 10.2 | `templates/status.html` — bigger text across widgets |
-| 10.3 | `documentation/docs.md` |
+| 10.3 | `static/index.html`, `templates/status.html` — dark/light theme toggle |
+| 10.4 | `documentation/docs.md`, `config-example.yaml` |
 | 11.1 | `internal/config/config.go` — Notifications/Telegram config |
-| 11.2 | `internal/notifications/telegram.go`, `main.go` — notify on service down |
+| 11.2 | `internal/notifications/telegram.go`, `main.go` — up/down alerts, container alerts, cooldown |
 | 11.3 | `documentation/docs.md`, `config-example.yaml` |
-| 12.1 | `internal/history/store.go` — time-series storage |
-| 12.2 | `templates/graphs.html`, `main.go` — chart endpoints |
+| 12.1 | `internal/history/store.go`, `go.mod` — SQLite time-series storage |
+| 12.2 | `templates/graphs.html`, `main.go` — chart endpoints, uPlot/sparklines |
 | 12.3 | `documentation/docs.md`, `config-example.yaml` |
 
 ---
@@ -675,13 +741,17 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 4. Bookmarks & Links | 4 | 3 | 1 | Mostly done (4.4 optional) |
 | 5. Service Widgets | 6 | 2 | 4 | **Deferred** (5.4 + partial 5.6 done) |
 | 6. Polish & Docs | 7 | 7 | 0 | Complete (incl. 6.5–6.7) |
-| 7. Swap, Kernel & Version | 3 | 0 | 3 | **Pending** |
-| 8. Manual Disk Config | 3 | 0 | 3 | **Pending** |
-| 9. Remote Docker Socket | 2 | 0 | 2 | **Pending** |
-| 10. UI Refinements | 3 | 0 | 3 | **Pending** |
+| 7. Proxmox API Enrichment | 3 | 3 | 0 | Complete |
+| 8. Disk Monitoring | 3 | 3 | 0 | Complete |
+| 9. Remote Docker & Portainer | 2 | 2 | 0 | Complete |
+| 10. UI & Theme Toggle | 4 | 0 | 4 | **Pending** |
 | 11. Telegram Notifications | 3 | 0 | 3 | **Pending** |
-| 12. Graph Reports | 3 | 0 | 3 | **Pending** |
-| **Total** | **55** | **29** | **26** |
+| 12. Historical Graphs | 3 | 0 | 3 | **Pending** |
+| **Total** | **58** | **37** | **21** |
 
-> **v1.0.1:** Added `skip_tls` option for services, fixed Overseerr pageInfo JSON tag, added Bookmarks config reference to docs.
+> **v1.3.1:** UI refinements — full-screen todo modal with date tracking, CPU/Memory widget vertical stretch and divider.
+> **v1.3.0:** Phase 9 complete — remote Docker TLS + Portainer API integration.
+> **v1.2.0:** Phase 8 complete — extra disk monitoring with auto-detect (statfs) and manual override modes.
+> **v1.1.0:** Phase 7 complete — swap usage, load average, PVE/kernel version display.
+> **v1.0.1:** Added `skip_tls` option for services, fixed Overseerr pageInfo JSON tag, added Bookmarks Config reference to docs.
 > **v1.0.0 Release:** All 29 completed steps are included in the first stable release. Remaining items (Phases 7–12) are planned for future versions.

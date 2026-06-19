@@ -9,14 +9,50 @@ proxmox:
   token_secret: "YOUR-SECRET-UUID-HERE"
   # Set to true to use mock data for testing UI without real credentials
   mock: true
+  # Extra disks to monitor (in addition to disks reported by Proxmox API)
+  # Supports two modes:
+  #   1. Auto-detect: reads disk usage from local filesystem via statfs
+  #      (requires mountpoint to exist on the dashboard host)
+  #   2. Manual: specify total/used sizes for remote or unmounted disks
+  # Duplicate mountpoints (matching Proxmox API disks) are automatically skipped.
+  # Supported size units: B, KB, MB, GB, TB (decimal) or KiB, MiB, GiB, TiB (binary)
+  extra_disks:
+    # Auto-detect mode: read real usage from local filesystem
+    - mountpoint: "/mnt/data"
+      auto_detect: true        # reads total/used from statfs (default: true)
+    # Manual mode: static values for remote/NAS/unmounted disks
+    # - mountpoint: "/mnt/nas"
+    #   label: "NAS Storage"   # optional friendly name (defaults to mountpoint)
+    #   total: "8TB"           # manual total size
+    #   used: "3.2TB"          # manual used size
+    #   auto_detect: false     # disable auto-detect when using manual values
 
 docker:
-  # Path to the local Docker socket
+  # ─── Local Docker Socket ────────────────────────────────────────────
+  # Path to the local Docker socket (default connection method)
   socket: "unix:///var/run/docker.sock"
   # Containers to explicitly monitor (leave empty to monitor all)
   monitor_containers:
     - "nginx"
     - "pihole"
+
+  # ─── Remote Docker with TLS (optional) ─────────────────────────────
+  # For remote Docker daemons over TCP with TLS client certificates.
+  # Change socket to tcp:// or https:// and configure certs below.
+  #
+  # socket: "tcp://docker.example.com:2376"
+  # skip_tls: false                     # set true to skip TLS verification (self-signed certs)
+  # tls_ca_cert: "/path/to/ca.pem"      # CA certificate (optional with skip_tls)
+  # tls_cert: "/path/to/cert.pem"       # client certificate for mTLS
+  # tls_key: "/path/to/key.pem"         # client private key for mTLS
+
+  # ─── Portainer API (optional, takes priority over socket/TCP) ─────
+  # When configured, containers are fetched via Portainer instead of
+  # connecting directly to Docker. Useful for managing remote hosts.
+  #
+  # portainer_url: "https://portainer.example.com"
+  # portainer_api_key: "ptr_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"  # from Portainer > Account > Access tokens
+  # portainer_env_id: 1                                     # Portainer environment/endpoint ID (default: 1)
 
 services:
   # List of web services to monitor for 200 OK

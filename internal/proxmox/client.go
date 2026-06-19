@@ -11,6 +11,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -27,13 +28,21 @@ type NodeStatus struct {
 		Used  int64 `json:"used"`
 		Free  int64 `json:"free"`
 	} `json:"memory"`
+	Swap struct {
+		Total int64 `json:"total"`
+		Used  int64 `json:"used"`
+		Free  int64 `json:"free"`
+	} `json:"swap"`
 	RootFS struct {
 		Total int64 `json:"total"`
 		Used  int64 `json:"used"`
 	} `json:"rootfs"`
-	Disks   []DiskInfo `json:"-"`
-	Uptime  int64      `json:"uptime"`
-	CPUInfo CPUInfo    `json:"-"`
+	Disks         []DiskInfo `json:"-"`
+	Uptime        int64      `json:"uptime"`
+	CPUInfo       CPUInfo    `json:"-"`
+	LoadAvg       [3]float64 `json:"-"`
+	PVEVersion    string     `json:"-"`
+	KernelVersion string     `json:"-"`
 }
 
 type CPUInfo struct {
@@ -42,11 +51,19 @@ type CPUInfo struct {
 	Threads   int // logical CPUs (siblings)
 }
 
+type ResourceInfo struct {
+	VMID   int    `json:"vmid"`
+	Name   string `json:"name"`
+	Status string `json:"status"` // "running", "stopped"
+}
+
 type VirtualizationInfo struct {
 	VMRunning  int
 	VMTotal    int
 	LXCRunning int
 	LXCTotal   int
+	VMs        []ResourceInfo
+	LXCs       []ResourceInfo
 }
 
 type Client struct {
@@ -100,15 +117,32 @@ func (c *Client) GetNodeStatus() (NodeStatus, error) {
 		return NodeStatus{}, fmt.Errorf("proxmox API returned status: %d", resp.StatusCode)
 	}
 
-	var result struct {
-		Data NodeStatus `json:"data"`
+	var raw struct {
+		Data struct {
+			NodeStatus
+			LoadAvg       [3]json.Number `json:"loadavg"`
+			PVEVersion    string         `json:"pveversion"`
+			KernelVersion string         `json:"kversion"`
+		} `json:"data"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
 		return NodeStatus{}, err
 	}
 
-	ns := result.Data
+	ns := raw.Data.NodeStatus
+
+	// Parse load average from json.Number (Proxmox returns them as strings like "0.50")
+	for i, v := range raw.Data.LoadAvg {
+		if f, err := v.Float64(); err == nil {
+			ns.LoadAvg[i] = f
+		}
+	}
+
+	// Copy version strings from raw response
+	ns.PVEVersion = raw.Data.PVEVersion
+	ns.KernelVersion = raw.Data.KernelVersion
+
 	// Populate Disks from RootFS
 	ns.Disks = append(ns.Disks, DiskInfo{
 		Mountpoint: "/",
@@ -178,6 +212,9 @@ func (c *Client) GetVirtualization() (VirtualizationInfo, error) {
 	if err == nil {
 		info.VMTotal = len(vms)
 		for _, vm := range vms {
+			info.VMs = append(info.VMs, ResourceInfo{
+				VMID: vm.VMID, Name: vm.Name, Status: vm.Status,
+			})
 			if vm.Status == "running" {
 				info.VMRunning++
 			}
@@ -190,6 +227,9 @@ func (c *Client) GetVirtualization() (VirtualizationInfo, error) {
 	if err == nil {
 		info.LXCTotal = len(lxcs)
 		for _, lxc := range lxcs {
+			info.LXCs = append(info.LXCs, ResourceInfo{
+				VMID: lxc.VMID, Name: lxc.Name, Status: lxc.Status,
+			})
 			if lxc.Status == "running" {
 				info.LXCRunning++
 			}
@@ -237,6 +277,20 @@ func getMockVirtualization() VirtualizationInfo {
 		VMTotal:    3,
 		LXCRunning: 5,
 		LXCTotal:   7,
+		VMs: []ResourceInfo{
+			{VMID: 100, Name: "pfsense", Status: "running"},
+			{VMID: 101, Name: "windows11", Status: "running"},
+			{VMID: 102, Name: "ubuntu-dev", Status: "stopped"},
+		},
+		LXCs: []ResourceInfo{
+			{VMID: 200, Name: "nginx-proxy", Status: "running"},
+			{VMID: 201, Name: "pihole", Status: "running"},
+			{VMID: 202, Name: "grafana", Status: "running"},
+			{VMID: 203, Name: "mariadb", Status: "running"},
+			{VMID: 204, Name: "redis", Status: "running"},
+			{VMID: 205, Name: "vaultwarden", Status: "stopped"},
+			{VMID: 206, Name: "homeassistant", Status: "stopped"},
+		},
 	}
 }
 
@@ -264,6 +318,21 @@ func getMockStatus() NodeStatus {
 		Cores:     12,
 		Threads:   20,
 	}
+
+	// Mock swap (typically smaller than RAM)
+	status.Swap.Total = 4 * 1024 * 1024 * 1024                                         // 4GB
+	status.Swap.Used = int64(float64(status.Swap.Total) * (0.1 + rand.Float64()*0.15)) // 10-25% used
+	status.Swap.Free = status.Swap.Total - status.Swap.Used
+
+	// Mock load average (1m, 5m, 15m)
+	status.LoadAvg = [3]float64{
+		0.5 + rand.Float64()*2.0, // 1 min: 0.5 - 2.5
+		0.8 + rand.Float64()*1.5, // 5 min: 0.8 - 2.3
+		1.0 + rand.Float64()*1.0, // 15 min: 1.0 - 2.0
+	}
+
+	status.PVEVersion = "pve-manager/8.2.2/935536e9"
+	status.KernelVersion = "6.8.12-1-pve"
 
 	return status
 }
@@ -391,4 +460,17 @@ func cleanCPUName(name string) string {
 		name = name[:idx]
 	}
 	return strings.TrimSpace(name)
+}
+
+// ReadDiskUsage reads disk usage from the filesystem using statfs for a given mountpoint.
+// Returns total bytes and used bytes.
+func ReadDiskUsage(mountpoint string) (total int64, used int64, err error) {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(mountpoint, &stat); err != nil {
+		return 0, 0, fmt.Errorf("statfs %s: %w", mountpoint, err)
+	}
+	total = int64(stat.Blocks) * int64(stat.Bsize)
+	// Used = total - available (Bavail excludes reserved blocks, more accurate for user perspective)
+	used = total - int64(stat.Bavail)*int64(stat.Bsize)
+	return total, used, nil
 }

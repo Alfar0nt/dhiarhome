@@ -20,7 +20,12 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 ### 1. Proxmox Server Monitoring
 - **CPU Usage** - Real-time CPU utilization percentage
 - **Memory Usage** - RAM usage with detailed breakdown (used/total)
-- **Disk Usage** - Root filesystem storage metrics
+- **Swap Usage** - Swap memory with color-coded bar (green <60%, yellow 60-80%, red >80%)
+- **Load Average** - 1-minute, 5-minute, and 15-minute load averages from the Proxmox API
+- **Disk Usage** - Root filesystem and multi-disk storage metrics
+- **Extra Disks** - Monitor additional filesystem mountpoints (auto-detect via statfs) or remote/unmounted disks (manual total/used sizes)
+- **Version Info** - PVE manager version and kernel version displayed in card footer with `font-semibold` labels for readability
+- **VM/LXC Enumeration** - Individual VM and LXC containers listed with running/stopped status indicators, VMID, and type labels
 - **Uptime Tracking** - Server uptime duration
 
 ### 2. Docker Container Monitoring
@@ -41,7 +46,7 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - Random varying metrics for realistic testing
 
 ### 5. Utility Widgets & Interactive Features
-- **To-Do List** — Interactive Alpine.js widget with add, toggle, delete. Persisted to `data/todos.json`. Optimistic updates via `fetch()` API calls. Scrollable list capped at ~2 visible items (`max-h-[72px]`). Inline `x-data` definition (no external function dependency).
+- **To-Do List** — Interactive Alpine.js widget with add, toggle, delete. Persisted to `data/todos.json`. Optimistic updates via `fetch()` API calls. Compact widget shows scrollable list capped at ~2 visible items (`max-h-[72px]`). **Full-screen modal** opens via expand button for better interaction on mobile and desktop (full-viewport `bg-gray-900/95` overlay with larger text and touch targets). **Date tracking** shows "Added [date]" and "Done [date]" in expanded mode with smart formatting (Today/Yesterday/date). Inline `x-data` definition (no external function dependency).
 - **Weather + Time** — Combined into a single compact card: live clock at top (client-side JS updates every second), weather condition below a divider. Mock weather cached for 5 minutes.
 - **System Info** — Hostname, OS name, system uptime, Go runtime stats (goroutines, memory) in compact card
 - **Network Summary** — Compact card showing per-interface status with live RX/TX speeds
@@ -195,13 +200,24 @@ dhiarhome/
 - Authenticates using API token (PVEAPIToken header)
 - Fetches node status (CPU, memory, disk, uptime)
 - **Multi-disk support**: `Disks []DiskInfo` with mountpoint, total, used per disk. Fetches additional disks from `/nodes/{node}/disks/list` endpoint. Mock mode returns 3 disks.
-- **Virtualization monitoring**: `GetVirtualization()` fetches QEMU VM and LXC container lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc`. Returns `VirtualizationInfo` with running/total counts for both VMs and LXCs. Mock mode returns 5/7 LXC, 2/3 VM.
+- **Extra disk monitoring**: `ExtraDisks []ExtraDiskConfig` in config supports two modes:
+  - **Auto-detect**: reads real disk usage from local filesystem via `syscall.Statfs` (requires mountpoint to exist on dashboard host)
+  - **Manual override**: accepts static `total`/`used` values as human-readable strings (e.g. "8TB", "500GB") for remote or unmounted disks
+  - Deduplicates by mountpoint against Proxmox API-reported disks
+  - `ReadDiskUsage()` function uses `statfs` to read block-level disk stats
+  - `ParseSize()` in config package converts human-readable size strings to bytes (supports B, KB, MB, GB, TB, KiB, MiB, GiB, TiB)
+- **Virtualization monitoring**: `GetVirtualization()` fetches QEMU VM and LXC container lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc`. Returns `VirtualizationInfo` with running/total counts and individual resource lists (`VMs []ResourceInfo`, `LXCs []ResourceInfo`) including VMID, name, and status (running/stopped). Mock mode returns 3 VMs and 7 LXCs with mixed states.
+- **API enrichment**: Parses swap usage (total/used/free), load average (1m/5m/15m from `loadavg` array), PVE version (`pveversion`), and kernel version (`kversion`) directly from the `/nodes/{node}/status` response — no extra API calls needed.
+- Uses `json.Number` for load average parsing since Proxmox returns these as string-encoded floats.
 - Supports self-signed certificates (TLS skip verify)
 - Mock mode generates random realistic data
 
 #### Docker Client (`internal/docker`)
-- Communicates via Unix socket (`/var/run/docker.sock`) or TCP
+- Communicates via Unix socket, TCP, or TLS-secured TCP
 - Uses Docker Engine API (`/containers/json?all=1`)
+- **Portainer integration**: fetches containers via Portainer API when configured
+- **TLS support**: client certificates (mTLS) and `skip_tls` for self-signed certs
+- Connection priority: Portainer > Remote Docker (TCP/TLS) > Local socket
 - Lists all containers with state and status
 - Supports filtering by container name
 
@@ -253,8 +269,10 @@ dhiarhome/
 - Thread-safe CRUD store with JSON file persistence
 - `NewStore(filePath)` loads existing data, auto-increments IDs
 - `GetAll()`, `Add(text)`, `Toggle(id)`, `Delete(id)` with `sync.RWMutex`
+- `Toggle()` records `done_at` timestamp (RFC3339) when completing, clears when uncompleting
 - Saves to `data/todos.json` on every mutation
 - Interactive UI via Alpine.js (client-side `fetch()` to REST API)
+- Full-screen modal with date metadata display (created_at, done_at)
 
 #### Bookmarks Store (`internal/bookmarks`)
 - Configurable web bookmarks organized into named groups
@@ -301,15 +319,39 @@ proxmox:
   token_id: "root@pam!dashboard"                # API token ID
   token_secret: "YOUR-SECRET-UUID"              # API token secret
   mock: false                                   # Use mock data (true/false)
+  # Extra disks to monitor beyond Proxmox API disks
+  extra_disks:
+    - mountpoint: "/mnt/data"                   # Required: filesystem mountpoint
+      auto_detect: true                         # Read real usage via statfs (default: true)
+    - mountpoint: "/mnt/nas"                    # Remote/unmounted disk
+      label: "NAS Storage"                      # Optional friendly name
+      total: "8TB"                              # Manual total size (supports B/KB/MB/GB/TB/KiB/MiB/GiB/TiB)
+      used: "3.2TB"                             # Manual used size
+      auto_detect: false                        # Disable auto-detect for manual mode
 ```
+
+> **Note:** Extra disks are merged with Proxmox API-reported disks. Duplicate mountpoints are automatically skipped. Auto-detect mode requires the mountpoint to exist on the dashboard host (uses `syscall.Statfs`). Manual mode is useful for remote NAS, network shares, or disks not directly mounted on the dashboard host.
 
 ### Docker Section
 ```yaml
 docker:
-  socket: "unix:///var/run/docker.sock"         # Docker socket path
+  # Local socket (default)
+  socket: "unix:///var/run/docker.sock"
   monitor_containers:                           # Optional filter (empty = all)
     - "nginx"
     - "pihole"
+
+  # Remote Docker with TLS (optional)
+  # socket: "tcp://docker.example.com:2376"
+  # skip_tls: true                              # Skip TLS verification
+  # tls_ca_cert: "/path/to/ca.pem"              # CA certificate
+  # tls_cert: "/path/to/cert.pem"               # Client certificate
+  # tls_key: "/path/to/key.pem"                # Client key
+
+  # Portainer API (optional, takes priority over socket/TCP)
+  # portainer_url: "https://portainer.example.com"
+  # portainer_api_key: "ptr_XXXXXXXXXXXX"       # Portainer access token
+  # portainer_env_id: 1                         # Endpoint ID
 ```
 
 ### Services Section
@@ -488,7 +530,7 @@ bookmarks:
 
 ## Future Enhancement Ideas
 
-See [to-do.md](to-do.md) for the full phased implementation plan (33 steps). Key upcoming features:
+See [to-do.md](to-do.md) for the full phased implementation plan (58 steps). Key upcoming features:
 
 - ~~Weather widget (Open-Meteo API, free, no key)~~
 - ~~Date/time widget with timezone support~~

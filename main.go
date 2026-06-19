@@ -167,7 +167,16 @@ func main() {
 		appConfig.Proxmox.Mock,
 	)
 
-	dkClient = docker.NewClient(appConfig.Docker.Socket)
+	dkClient = docker.NewClientWithOptions(docker.Options{
+		Endpoint:     appConfig.Docker.Socket,
+		SkipTLS:      appConfig.Docker.SkipTLS,
+		CACert:       appConfig.Docker.TLSCACert,
+		Cert:         appConfig.Docker.TLSCert,
+		Key:          appConfig.Docker.TLSKey,
+		PortainerURL: appConfig.Docker.PortainerURL,
+		PortainerKey: appConfig.Docker.PortainerKey,
+		PortainerEnv: appConfig.Docker.PortainerEnvID,
+	})
 
 	// Initialize widget registry and register enabled widgets
 	widgetRegistry = widgets.NewRegistry()
@@ -453,6 +462,9 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 		log.Printf("Proxmox API Error: %v", err)
 	}
 
+	// Merge extra disks from config into Proxmox disks
+	mergeExtraDisks(&pxStatus, appConfig.Proxmox.ExtraDisks)
+
 	// Fetch Docker containers
 	containers, err := dkClient.GetContainers()
 	if err != nil {
@@ -696,5 +708,57 @@ func todoItemHandler(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// mergeExtraDisks appends configured extra disks to the Proxmox disk list.
+// Deduplicates by mountpoint. Supports auto-detect (statfs) and manual (static total/used) modes.
+func mergeExtraDisks(status *proxmox.NodeStatus, extraDisks []config.ExtraDiskConfig) {
+	// Build set of existing mountpoints for deduplication
+	existing := make(map[string]bool)
+	for _, d := range status.Disks {
+		existing[d.Mountpoint] = true
+	}
+
+	for _, ed := range extraDisks {
+		if ed.Mountpoint == "" {
+			continue
+		}
+		// Skip if mountpoint already in the disk list
+		if existing[ed.Mountpoint] {
+			log.Printf("[INFO] extra_disk %s: mountpoint already present, skipping", ed.Mountpoint)
+			continue
+		}
+
+		disk := proxmox.DiskInfo{
+			Mountpoint: ed.Mountpoint,
+		}
+
+		// Determine disk size source
+		hasStaticTotal := ed.Total != "" && ed.Used != ""
+		if hasStaticTotal {
+			// Manual override: use static values from config
+			totalBytes, _ := config.ParseSize(ed.Total)
+			usedBytes, _ := config.ParseSize(ed.Used)
+			disk.Total = totalBytes
+			disk.Used = usedBytes
+		} else if ed.AutoDetect {
+			// Auto-detect: read from filesystem via statfs
+			totalBytes, usedBytes, err := proxmox.ReadDiskUsage(ed.Mountpoint)
+			if err != nil {
+				log.Printf("[WARN] extra_disk %s: statfs failed (%v), skipping", ed.Mountpoint, err)
+				continue
+			}
+			disk.Total = totalBytes
+			disk.Used = usedBytes
+		} else {
+			// No static values and auto-detect disabled: skip
+			log.Printf("[WARN] extra_disk %s: no total/used provided and auto_detect is false, skipping", ed.Mountpoint)
+			continue
+		}
+
+		status.Disks = append(status.Disks, disk)
+		existing[ed.Mountpoint] = true
+		log.Printf("[INFO] extra_disk added: %s (total: %d, used: %d)", ed.Mountpoint, disk.Total, disk.Used)
 	}
 }

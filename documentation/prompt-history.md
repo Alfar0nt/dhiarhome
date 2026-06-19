@@ -1348,3 +1348,259 @@ okay that iss very good. now i think we're good to go to the phase for according
 - The project uses `.gitignore` to exclude `config.yaml` (contains secrets) and the compiled `dhiarhome` binary
 - For questions or issues, refer to `deployment.md` troubleshooting section
 - The project was originally named "Selfhosted Proxmox Dashboard" and was rebranded to "dhiarhome" in Session 4
+
+---
+
+## Session 25: Phase 7 Implementation — Proxmox API Enrichment
+
+**Date:** June 19, 2026
+
+### User Request
+```
+i want you to start implementing the phase 7 of this project based on the to-do.md that we just created. also for the documentation, update the changlogs according to the current date which is 19/06/2026. now we can start implementing the phase 7
+```
+
+### Implementation Summary
+
+1. **Swap usage monitoring**: Added `Swap` anonymous struct to `NodeStatus` with Total/Used/Free fields. Color-coded bar with thresholds (green <60%, yellow 60-80%, red >80%).
+2. **Load average display**: Parsed from Proxmox API `loadavg` field using `json.Number` (Proxmox returns string-encoded floats). Displays as `0.50 / 0.35 / 0.28`.
+3. **Version info footer**: PVE version (`pveversion`) and kernel version (`kversion`) from the node status API response.
+4. **Mock data** for all new fields.
+
+### Files Modified
+- `internal/proxmox/client.go` — Swap struct, LoadAvg, PVEVersion, KernelVersion, JSON parsing, mock data
+- `templates/status.html` — Swap bar, load average display, version footer
+- `documentation/docs.md` — Updated Proxmox monitoring features
+- `documentation/changelogs.md` — v1.1.0 entry dated 2026-06-19
+- `documentation/to-do.md` — Phase 7 marked complete
+
+---
+
+## Session 26: Layout Refinement — Memory/Swap Side-by-Side, Virtualization Reposition, Version Readability
+
+**Date:** June 19, 2026
+
+### User Requests (cumulative)
+1. Put Memory and Swap in the same horizontal row to save vertical space
+2. Make Virtualization widget fit the horizontal space below
+3. Improve PVE/Kernel version text readability
+
+### Changes
+- Memory + Swap wrapped in `sm:grid-cols-2` sub-grid (side-by-side on desktop, stacked on mobile)
+- CPU+Memory card expanded to `md:col-span-2`, Virtualization moved to full-width row below
+- Version footer: bumped to `text-[11px]`, `font-semibold` labels, `text-gray-300` values, wider `gap-x-6` spacing
+
+---
+
+## Session 27: Virtualization Widget — Back to Middle + VM/LXC Resource Enumeration
+
+**Date:** June 19, 2026
+
+### User Requests (cumulative)
+1. Move Virtualization back to the middle column (right side of CPU & Memory)
+2. Add individual VM/LXC listing with running/stopped status from Proxmox API
+3. Add scrollable resource list under each VM/LXC section
+4. Fix scroll bug in virtualization widget
+5. Add "VM" or "LXC" type label next to VMID on the right side
+6. Make all 3 Proxmox widgets (CPU+Memory, Virtualization, Disk) side-by-side in one row
+
+### Implementation Summary
+
+1. **Proxmox API** (`internal/proxmox/client.go`):
+   - Added `ResourceInfo` exported struct with `VMID int`, `Name string`, `Status string`
+   - Added `VMs []ResourceInfo` and `LXCs []ResourceInfo` to `VirtualizationInfo`
+   - `GetVirtualization()` now populates individual resource lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc` endpoints
+   - Mock data: 3 VMs (pfsense, windows11, ubuntu-dev) and 7 LXCs (nginx-proxy, pihole, grafana, mariadb, redis, vaultwarden, homeassistant)
+
+2. **Layout** (`templates/status.html`):
+   - Row 1: CPU & Memory (col-span-1) + Virtualization (col-span-1) + Disk (col-span-1)
+   - Memory + Swap side-by-side in horizontal sub-grid
+   - Compact VM/LXC count cards (smaller icons, tighter padding)
+   - Scrollable resource list (`max-h-[120px]`) with thin scrollbar
+   - Each resource: green ping dot (running) / gray dot (stopped) + name + VMID + type label ("100 VM", "200 LXC")
+
+3. **Scroll fix**: Added `pointer-events-none` to all absolute-positioned hover overlays so they don't intercept mouse wheel events on inner scrollable areas
+
+### Files Modified
+- `internal/proxmox/client.go` — ResourceInfo struct, VM/LXC lists, mock data
+- `templates/status.html` — 3-col layout, scrollable resource lists, pointer-events-none overlays, type labels
+- `documentation/changelogs.md` — v1.1.0 entry updated with all changes
+- `documentation/docs.md` — Updated virtualization monitoring description
+- `documentation/to-do.md` — Updated progress tracker
+- `documentation/prompt-history.md` — This session
+
+---
+
+## Session 28: Documentation Update for Phase 7 Refinements
+
+**Date:** June 19, 2026
+
+### User Request
+```
+okay very great. now update the documentation folder
+```
+
+### Implementation Summary
+
+All documentation files were updated to reflect the complete Phase 7 implementation including all iterative refinements:
+
+1. **`documentation/changelogs.md`** — Comprehensive v1.1.0 entry updated with:
+   - Memory/Swap horizontal side-by-side layout
+   - VM/LXC resource enumeration with `ResourceInfo` struct
+   - Individual resource lists with running/stopped status indicators
+   - Type labels ("VM" or "LXC") next to VMID
+   - Scroll bug fix via `pointer-events-none` on hover overlays
+   - 3-column side-by-side Proxmox widget layout
+   - Version footer readability improvements
+
+2. **`documentation/docs.md`** — Updated:
+   - Proxmox Server Monitoring section with VM/LXC Enumeration description
+   - Proxmox Client architecture section with `ResourceInfo` struct and individual resource list details
+   - Mock data description (3 VMs, 7 LXCs with mixed states)
+
+3. **`documentation/to-do.md`** — Updated:
+   - Phase 7 all steps marked `[x]` complete
+   - Progress tracker updated: 32/58 steps complete
+   - v1.1.0 release note updated with all refinements
+
+4. **`documentation/prompt-history.md`** — Added Sessions 25, 26, 27, and 28
+
+### Files Modified
+- `documentation/changelogs.md` — v1.1.0 entry expanded
+- `documentation/docs.md` — VM/LXC enumeration docs
+- `documentation/to-do.md` — Progress tracker updated
+- `documentation/prompt-history.md` — Sessions 25–28 added
+
+---
+
+## Session 29: Phase 8 Implementation — Manual & Filesystem Disk Monitoring
+
+**Date:** June 19, 2026
+
+### User Request
+```
+okay good one. now i think were good to go to implementing the phase 8 of this project accroding to the to-do.md. lets go
+```
+
+### Implementation Summary
+
+1. **Extra disk config** (`internal/config/config.go`):
+   - Added `ExtraDiskConfig` struct with `Mountpoint`, `Label`, `Total`, `Used`, `AutoDetect` fields
+   - Added `ExtraDisks []ExtraDiskConfig` to `ProxmoxConfig`
+   - Added `ParseSize()` function: converts human-readable size strings (e.g. "500GB", "1.5TB") to bytes using regex. Supports decimal units (B, KB, MB, GB, TB) and binary units (KiB, MiB, GiB, TiB)
+   - Added validation: checks mountpoint required, validates size format for total/used
+   - Feature summary now shows `ExtraDisks (N)` count
+
+2. **Filesystem disk reading** (`internal/proxmox/client.go`):
+   - Added `ReadDiskUsage(mountpoint string)` function using `syscall.Statfs`
+   - Returns total and used bytes (used = total - available, excluding reserved blocks)
+
+3. **Disk merge logic** (`main.go`):
+   - Added `mergeExtraDisks()` function: appends extra disks to Proxmox API disks
+   - Deduplicates by mountpoint (skips if already present)
+   - Auto-detect mode: reads real disk usage via `ReadDiskUsage()`
+   - Manual mode: uses static total/used values parsed via `ParseSize()`
+   - Logs `[INFO]` for added disks, `[WARN]` for failures or duplicates
+   - Called in `statusHandler` after fetching Proxmox status
+
+4. **Testing**: Verified with 5 disks showing simultaneously:
+   - `/` (mock rootfs), `/mnt/storage` (mock API), `/mnt/backup` (mock API)
+   - `/home` (auto-detect via statfs: ~137GB total, ~48GB used)
+   - `/mnt/nas` (manual: 8TB total, 3.2TB used)
+
+### Files Modified
+- `internal/config/config.go` — `ExtraDiskConfig`, `ExtraDisks`, `ParseSize()`, validation
+- `internal/proxmox/client.go` — `ReadDiskUsage()` with `syscall.Statfs`
+- `main.go` — `mergeExtraDisks()` function
+- `config.yaml` — Sample extra disks (auto-detect `/home`, manual `/mnt/nas`)
+- `config-example.yaml` — Extra disks section with documented examples
+- `documentation/docs.md` — Extra Disks feature, config reference, Proxmox client section
+- `documentation/changelogs.md` — v1.2.0 entry
+- `documentation/to-do.md` — Phase 8 complete, progress tracker 35/58
+- `documentation/prompt-history.md` — This session
+
+---
+
+## Session 30: Phase 9 Implementation — Remote Docker & Portainer Support
+
+**Date:** June 19, 2026
+
+### User Request
+```
+okay very great. now i think were good to go to the next section, which is to go to the phase 9 of this project according to the to-do.md. proceess with that update
+```
+
+### Implementation Summary
+Implemented Phase 9: Remote Docker & Portainer Support, adding TLS client certificate authentication and Portainer API integration to the Docker client.
+
+**Key features added:**
+1. **Remote Docker with TLS** — Connect to remote Docker daemons over TCP with mTLS client certificates or `skip_tls` for self-signed certs
+2. **Portainer API integration** — Fetch containers via Portainer when configured (uses `X-API-Key` header)
+3. **Connection priority** — Portainer > Remote Docker (TCP/TLS) > Local socket
+4. **Backward compatible** — `NewClient(endpoint)` still works; `NewClientWithOptions(Options)` adds full config
+
+### Technical Details
+
+**Config changes:**
+- Extended `DockerConfig` struct with `SkipTLS`, `TLSCACert`, `TLSCert`, `TLSKey`, `PortainerURL`, `PortainerKey`, `PortainerEnvID` fields
+
+**Docker client refactor:**
+- New `Options` struct for full client configuration
+- `NewClientWithOptions()` handles TLS cert loading, skip_tls, and Portainer proxy
+- Internal methods `getDockerContainers()` and `getPortainerContainers()`
+- TLS auto-detection: `tcp://` endpoint + TLS config = `https://`
+
+### Files Modified
+- `internal/config/config.go` — DockerConfig extended with TLS and Portainer fields
+- `internal/docker/client.go` — Full rewrite with TLS certs, skip_tls, Portainer API
+- `main.go` — Updated to use `NewClientWithOptions()`
+- `config.yaml` — Added commented TLS and Portainer options
+- `config-example.yaml` — Comprehensive Docker section with all connection methods
+- `documentation/docs.md` — Docker client section updated
+- `documentation/changelogs.md` — v1.3.0 entry
+- `documentation/to-do.md` — Phase 9 complete, progress tracker 37/58
+- `documentation/prompt-history.md` — This session
+
+---
+
+## Session 31: UI Refinements — Todo Modal, CPU/Memory Widget & Date Tracking
+
+**Date:** June 19, 2026
+
+### User Requests
+```
+can you add a line divider between the cpu and the memory/swap usage?
+i want you to slightly update the cpu and memory widget so that it fits the vertically available space
+make the pop-up/expand for the to-do fit the whole screen, not just in the to-do widget
+make the text for the to-do on expand mode fit the screen horizontally
+add date added and date finished on each of the to-do list
+fix the date finished disappearing on page refresh
+```
+
+### Implementation Summary
+
+**CPU & Memory widget:**
+- Added `flex flex-col self-stretch` to fill available grid height
+- Progress bars increased from `h-1.5` to `h-2`
+- Added `border-t border-gray-700/40` divider between CPU/Load and Memory/Swap
+
+**Full-screen todo modal:**
+- Expand button (icon) in widget header opens full-viewport overlay
+- `w-full h-full` on all devices, solid `bg-gray-900/95` background
+- Larger text, checkboxes, and touch targets in modal
+- Close via X button, backdrop click, or Escape key
+- Fixed CSS transform containment bug: moved `x-data`/`data-preserve` to wrapper, modal as sibling of `glass-card`
+
+**Date tracking:**
+- `formatDate()` Alpine.js helper with smart formatting (Today/Yesterday/date)
+- "Added [date]" and "Done [date]" shown in expanded modal only
+- Fixed `done_at` persistence: added `done_at` field to Go template initial Alpine.js data
+
+### Files Modified
+- `templates/status.html` — CPU/Memory widget stretch, progress bars, divider
+- `templates/todo.html` — Full modal, date display, transform containment fix, `done_at` persistence
+- `documentation/changelogs.md` — v1.3.1 entry
+- `documentation/deployment.md` — Remote Docker & Portainer config section
+- `documentation/docs.md` — Todo modal and UI refinements
+- `documentation/to-do.md` — v1.3.1 version note
+- `documentation/prompt-history.md` — This session

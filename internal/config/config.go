@@ -5,6 +5,8 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -42,16 +44,34 @@ type AppearanceConfig struct {
 }
 
 type ProxmoxConfig struct {
-	URL         string `yaml:"url"`
-	NodeName    string `yaml:"node_name"`
-	TokenID     string `yaml:"token_id"`
-	TokenSecret string `yaml:"token_secret"`
-	Mock        bool   `yaml:"mock"`
+	URL         string            `yaml:"url"`
+	NodeName    string            `yaml:"node_name"`
+	TokenID     string            `yaml:"token_id"`
+	TokenSecret string            `yaml:"token_secret"`
+	Mock        bool              `yaml:"mock"`
+	ExtraDisks  []ExtraDiskConfig `yaml:"extra_disks"`
+}
+
+type ExtraDiskConfig struct {
+	Mountpoint string `yaml:"mountpoint"`  // required: e.g. "/mnt/data"
+	Label      string `yaml:"label"`       // optional: friendly name (defaults to mountpoint)
+	Total      string `yaml:"total"`       // optional: manual override, e.g. "500GB", "1TB"
+	Used       string `yaml:"used"`        // optional: manual override, e.g. "200GB"
+	AutoDetect bool   `yaml:"auto_detect"` // if true (default), read from filesystem via statfs
 }
 
 type DockerConfig struct {
 	Socket            string   `yaml:"socket"`
 	MonitorContainers []string `yaml:"monitor_containers"`
+	// Remote Docker TLS options
+	SkipTLS   bool   `yaml:"skip_tls"`
+	TLSCACert string `yaml:"tls_ca_cert"`
+	TLSCert   string `yaml:"tls_cert"`
+	TLSKey    string `yaml:"tls_key"`
+	// Portainer API integration
+	PortainerURL   string `yaml:"portainer_url"`
+	PortainerKey   string `yaml:"portainer_api_key"`
+	PortainerEnvID int    `yaml:"portainer_env_id"`
 }
 
 type ServiceConfig struct {
@@ -123,6 +143,41 @@ type BookmarkLink struct {
 	Icon        string `yaml:"icon"` // Lucide icon name, image path, or "favicon"
 	Description string `yaml:"description"`
 	NewTab      bool   `yaml:"new_tab"` // Open in new tab (default true)
+}
+
+// parseSizeRegex matches a number (with optional decimal) followed by a unit suffix.
+var parseSizeRegex = regexp.MustCompile(`(?i)^\s*([\d.]+)\s*(B|KB|MB|GB|TB|KIB|MIB|GIB|TIB)?\s*$`)
+
+// ParseSize converts a human-readable size string (e.g. "500GB", "1.5TB", "200MB") to bytes.
+func ParseSize(s string) (int64, error) {
+	m := parseSizeRegex.FindStringSubmatch(s)
+	if m == nil {
+		return 0, fmt.Errorf("invalid size format: %q", s)
+	}
+	val, err := strconv.ParseFloat(m[1], 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid number in size: %q", m[1])
+	}
+	unit := strings.ToUpper(m[2])
+	if unit == "" {
+		unit = "B"
+	}
+	multipliers := map[string]float64{
+		"B":   1,
+		"KB":  1000,
+		"MB":  1000 * 1000,
+		"GB":  1000 * 1000 * 1000,
+		"TB":  1000 * 1000 * 1000 * 1000,
+		"KIB": 1024,
+		"MIB": 1024 * 1024,
+		"GIB": 1024 * 1024 * 1024,
+		"TIB": 1024 * 1024 * 1024 * 1024,
+	}
+	mult, ok := multipliers[unit]
+	if !ok {
+		return 0, fmt.Errorf("unknown size unit: %q", unit)
+	}
+	return int64(val * mult), nil
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -289,6 +344,26 @@ func (c *Config) validate() {
 		}
 	}
 
+	// Extra disks validation
+	for i, ed := range c.Proxmox.ExtraDisks {
+		if ed.Mountpoint == "" {
+			log.Printf("[WARN] proxmox.extra_disks[%d] missing mountpoint, skipping", i)
+			continue
+		}
+		if ed.Total != "" {
+			if _, err := ParseSize(ed.Total); err != nil {
+				log.Printf("[WARN] proxmox.extra_disks[%d].total '%s' invalid (%v), skipping", i, ed.Total, err)
+				c.Proxmox.ExtraDisks[i].Total = ""
+			}
+		}
+		if ed.Used != "" {
+			if _, err := ParseSize(ed.Used); err != nil {
+				log.Printf("[WARN] proxmox.extra_disks[%d].used '%s' invalid (%v), skipping", i, ed.Used, err)
+				c.Proxmox.ExtraDisks[i].Used = ""
+			}
+		}
+	}
+
 	// Print feature summary
 	features := []string{}
 	if !c.Proxmox.Mock && c.Proxmox.URL != "" {
@@ -323,6 +398,9 @@ func (c *Config) validate() {
 			totalLinks += len(g.Links)
 		}
 		features = append(features, fmt.Sprintf("Bookmarks (%d links)", totalLinks))
+	}
+	if len(c.Proxmox.ExtraDisks) > 0 {
+		features = append(features, fmt.Sprintf("ExtraDisks (%d)", len(c.Proxmox.ExtraDisks)))
 	}
 	if len(features) > 0 {
 		log.Printf("Active features: %s", strings.Join(features, ", "))

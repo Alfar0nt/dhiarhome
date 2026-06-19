@@ -4,6 +4,165 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.3.1] - 2026-06-19 - UI Refinements: Todo Modal, CPU/Memory Widget & Date Tracking
+
+### Added
+- **Full-screen todo modal** — Expand button in widget header opens a full-viewport overlay for better mobile and desktop interaction:
+  - Full-screen (`w-full h-full`) on all devices with solid dark background (`bg-gray-900/95`)
+  - Larger text (`text-base`), bigger checkboxes (`w-5 h-5`), and more touch-friendly padding
+  - Smooth enter/leave transitions with Alpine.js `x-transition`
+  - Close via X button, backdrop click, or Escape key
+  - Shared Alpine.js state — actions in modal sync instantly with compact widget
+- **Date tracking display** — Each todo in expanded mode shows:
+  - "Added [date]" — when the task was created
+  - "Done [date]" — when the task was completed (amber color)
+  - Smart formatting: "Today 10:30", "Yesterday 14:22", or "Jun 19 09:15"
+  - Only visible in expanded modal view (compact widget unchanged)
+- **`formatDate()` helper** — Alpine.js function for human-readable date formatting
+
+### Changed
+- **CPU & Memory widget** — Improved vertical space utilization:
+  - Added `flex flex-col self-stretch` to fill available grid row height
+  - Progress bars increased from `h-1.5` (6px) to `h-2` (8px)
+  - Added subtle border divider between CPU/Load and Memory/Swap sections
+- **Todo template structure** — Restructured to fix CSS `transform` containment bug:
+  - Moved `x-data` and `data-preserve` to outer wrapper div
+  - Modal placed as sibling of `glass-card` (outside `transform: translateZ(0)` containing block)
+  - `fixed` positioning now correctly covers full viewport
+- **`done_at` persistence fix** — Go template now passes `done_at` field to Alpine.js initial data, so completion dates persist across page refreshes
+
+### Files Modified
+- `templates/todo.html` — Full modal implementation, date display, structural fix for transform containment
+- `templates/status.html` — CPU/Memory widget vertical stretch, progress bar height, section divider
+- `documentation/changelogs.md` — This entry
+- `documentation/deployment.md` — Remote Docker & Portainer config section added
+- `documentation/docs.md` — Todo modal and UI refinements documented
+- `documentation/prompt-history.md` — New sessions added
+
+---
+
+## [1.3.0] - 2026-06-19 - Phase 9: Remote Docker & Portainer Support
+
+### Added
+- **Remote Docker with TLS** — Connect to remote Docker daemons over TCP with optional TLS client certificates:
+  - `skip_tls` option to skip certificate verification for self-signed certs
+  - `tls_ca_cert`, `tls_cert`, `tls_key` paths for mTLS authentication
+  - Automatic TLS detection: `tcp://` endpoint + TLS config = `https://`
+- **Portainer API integration** — Fetch containers via Portainer instead of direct Docker connection:
+  - `portainer_url` — Portainer instance URL
+  - `portainer_api_key` — API access token (from Portainer > Account > Access tokens)
+  - `portainer_env_id` — Environment/endpoint ID (default: 1)
+  - Uses `/api/endpoints/{env_id}/docker/containers/json` endpoint with `X-API-Key` header
+- **Connection priority**: Portainer > Remote Docker (TCP/TLS) > Local socket
+- **`Options` struct** (`internal/docker/client.go`): New struct for full client configuration
+- **`NewClientWithOptions()` function**: Creates Docker client with TLS and Portainer support
+- Backward compatible: `NewClient(endpoint)` still works for simple socket connections
+
+### Changed
+- **`DockerConfig` struct** (`internal/config/config.go`): Added `SkipTLS`, `TLSCACert`, `TLSCert`, `TLSKey`, `PortainerURL`, `PortainerKey`, `PortainerEnvID` fields
+- **`main.go`**: Updated to use `NewClientWithOptions()` with full config options
+- **Docker client** (`internal/docker/client.go`): Refactored with `getDockerContainers()` and `getPortainerContainers()` internal methods
+
+### Files Modified
+- `internal/config/config.go` — DockerConfig extended with TLS and Portainer fields
+- `internal/docker/client.go` — Full rewrite with TLS certs, skip_tls, Portainer API proxy
+- `main.go` — Updated Docker client initialization to use `NewClientWithOptions()`
+- `config.yaml` — Added commented TLS and Portainer options
+- `config-example.yaml` — Comprehensive Docker section with all connection methods
+- `documentation/docs.md` — Docker client section updated with TLS and Portainer details
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 9 marked complete
+- `documentation/prompt-history.md` — New session added
+
+---
+
+## [1.2.0] - 2026-06-19 - Phase 8: Manual & Filesystem Disk Monitoring
+
+### Added
+- **Extra disk monitoring** — Monitor additional filesystem mountpoints beyond what the Proxmox API reports:
+  - **Auto-detect mode**: Reads real disk usage from local filesystem via `syscall.Statfs` (requires mountpoint to exist on the dashboard host)
+  - **Manual override mode**: Accepts static `total`/`used` values as human-readable strings (e.g. `"8TB"`, `"500GB"`) for remote or unmounted disks
+  - `ExtraDiskConfig` struct with `Mountpoint`, `Label`, `Total`, `Used`, `AutoDetect` fields
+  - `ExtraDisks []ExtraDiskConfig` added to `ProxmoxConfig`
+- **`ParseSize()` function** (`internal/config/config.go`): Converts human-readable size strings to bytes. Supports decimal units (B, KB, MB, GB, TB) and binary units (KiB, MiB, GiB, TiB). Uses regex for robust parsing including decimal values (e.g. "1.5TB")
+- **`ReadDiskUsage()` function** (`internal/proxmox/client.go`): Reads disk usage from the filesystem using `syscall.Statfs`. Returns total and used bytes. Used = total - available (excludes reserved blocks)
+- **Disk merge with deduplication** (`main.go`): `mergeExtraDisks()` appends extra disks to Proxmox API disks, skipping duplicate mountpoints. Logs `[INFO]` for added disks and `[WARN]` for failures
+- **Config validation**: Validates mountpoint is set, parses total/used sizes, logs warnings for invalid entries
+- **Feature summary**: `ExtraDisks (N)` shown in startup feature list
+
+### Changed
+- **`ProxmoxConfig` struct** (`internal/config/config.go`): Added `ExtraDisks []ExtraDiskConfig` field with `yaml:"extra_disks"` tag
+- **`statusHandler`** (`main.go`): Calls `mergeExtraDisks()` after fetching Proxmox status to combine API disks with configured extra disks
+- **Config validation** (`internal/config/config.go`): Added extra disks validation - checks mountpoint required, validates size format for total/used
+
+### Files Modified
+- `internal/config/config.go` — `ExtraDiskConfig` struct, `ExtraDisks` field, `ParseSize()`, validation
+- `internal/proxmox/client.go` — `ReadDiskUsage()` function with `syscall.Statfs`
+- `main.go` — `mergeExtraDisks()` function, called in `statusHandler`
+- `config.yaml` — Sample extra disks (auto-detect `/home`, manual `/mnt/nas`)
+- `config-example.yaml` — Extra disks section with documented examples
+- `documentation/docs.md` — Extra Disks feature description, config reference, Proxmox client section
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 8 marked complete
+- `documentation/prompt-history.md` — New session added
+
+---
+
+## [1.1.0] - 2026-06-19 - Phase 7: Proxmox API Enrichment
+
+### Added
+- **Swap usage monitoring** — New swap bar in the CPU & Memory card showing total/used/free with color-coded thresholds:
+  - Green (`bg-amber-400`) when usage < 60%
+  - Yellow (`bg-yellow-500`) when usage 60-80%
+  - Red (`bg-red-500`) when usage > 80%
+  - Displays percentage and GB breakdown (e.g., "0.6GB / 4.0GB")
+  - Memory and Swap bars displayed side-by-side in a horizontal row to save vertical space
+  - Only shown when swap total > 0 (graceful handling of no-swap systems)
+- **Load average display** — 1-minute, 5-minute, and 15-minute load averages shown below CPU bar in format `0.50 / 0.35 / 0.28`
+  - Parsed from Proxmox API `loadavg` field (string-encoded floats via `json.Number`)
+  - Conditionally rendered (hidden when all values are zero)
+- **Version info footer** — PVE manager version and kernel version displayed in a subtle footer below the Proxmox metrics grid:
+  - Format: `PVE pve-manager/8.2.2/935536e9` and `Kernel 6.8.12-1-pve`
+  - `font-semibold` labels with `text-gray-300` values for good readability
+  - Wrapped in a bordered footer with subtle separator line
+  - Conditionally rendered (hidden when version strings are empty)
+- **VM/LXC resource enumeration** — Individual VM and LXC containers listed with status indicators:
+  - Added `ResourceInfo` struct with `VMID`, `Name`, `Status` fields
+  - Added `VMs []ResourceInfo` and `LXCs []ResourceInfo` to `VirtualizationInfo`
+  - Each resource shows: green ping dot (running) / gray dot (stopped), name, VMID + type label (e.g., "100 VM", "200 LXC")
+  - Scrollable list with `max-h-[120px]` and thin scrollbar to keep widget compact
+  - Mock data includes 3 VMs and 7 LXCs with mixed running/stopped states
+- **Mock data** for all new fields: swap (4GB, 10-25% used), load average (randomized 0.5-2.5), PVE version, kernel version, individual VM/LXC resources
+
+### Changed
+- **`NodeStatus` struct** (`internal/proxmox/client.go`):
+  - Added `Swap` anonymous struct with `Total`, `Used`, `Free` fields (`json:"swap"`)
+  - Added `LoadAvg [3]float64`, `PVEVersion string`, `KernelVersion string` fields (all `json:"-"`)
+- **`VirtualizationInfo` struct** (`internal/proxmox/client.go`):
+  - Added `ResourceInfo` exported struct (VMID, Name, Status)
+  - Added `VMs []ResourceInfo` and `LXCs []ResourceInfo` fields
+  - `GetVirtualization()` now populates individual resource lists alongside running/total counts
+- **JSON parsing** (`GetNodeStatus()`): Replaced simple `NodeStatus` decode with raw struct that captures `loadavg` (as `[3]json.Number`), `pveversion`, and `kversion` separately, then manually copies to `NodeStatus`
+- **Proxmox grid layout** (`templates/status.html`):
+  - Row 1: CPU & Memory (col-span-1) + Virtualization (col-span-1) + Disk Usage (col-span-1) — 3 widgets side-by-side
+  - Memory + Swap in horizontal sub-grid within CPU & Memory card
+  - Virtualization widget includes compact VM/LXC count cards + scrollable resource list
+  - All hover overlays have `pointer-events-none` to prevent scroll interference
+- **Version footer** improved readability: `text-[11px]`, `font-semibold` labels, `text-gray-300` values, wider spacing
+
+### Fixed
+- **Virtualization scroll not working** — Root cause: absolute-positioned hover overlay captured mouse events. Fixed by adding `pointer-events-none` to all hover overlays (CPU+Memory, Virtualization, Disk cards)
+
+### Files Modified
+- `internal/proxmox/client.go` — Swap struct, LoadAvg, PVEVersion, KernelVersion, ResourceInfo, VM/LXC lists, JSON parsing, mock data
+- `templates/status.html` — Swap bar, load average, version footer, 3-col layout, scrollable VM/LXC lists, pointer-events-none overlays
+- `documentation/docs.md` — Updated Proxmox monitoring feature list and client description
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 7 marked complete
+- `documentation/prompt-history.md` — New sessions added
+
+---
+
 ## [1.0.1] - 2026-06-18 - Skip TLS Option for Services
 
 ### Added
@@ -825,3 +984,8 @@ personalProject-Dashboard/
 | 0.10.0 | 2026-06-18 | Phase 6: graceful shutdown, config validation, Dockerfile hardening |
 | 0.10.1 | 2026-06-18 | Security hardening: headers, rate limiting, path traversal, input validation |
 | 1.0.0 | 2026-06-18 | First stable release with all planned features |
+| 1.0.1 | 2026-06-18 | Skip TLS option for services, bookmarks config reference |
+| 1.1.0 | 2026-06-19 | Phase 7: swap usage, load average, PVE/kernel version display |
+| 1.2.0 | 2026-06-19 | Phase 8: extra disk monitoring (auto-detect + manual override) |
+| 1.3.0 | 2026-06-19 | Phase 9: remote Docker TLS + Portainer API integration |
+| 1.3.1 | 2026-06-19 | UI refinements: full-screen todo modal, date tracking, CPU/Memory widget |

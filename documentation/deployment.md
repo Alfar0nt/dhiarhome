@@ -350,6 +350,7 @@ proxmox:
 
 #### Docker Configuration
 
+**Local Docker Socket (default):**
 ```yaml
 docker:
   socket: "unix:///var/run/docker.sock"
@@ -358,11 +359,36 @@ docker:
     - "pihole"
 ```
 
+**Remote Docker with TLS:**
+```yaml
+docker:
+  socket: "tcp://docker.example.com:2376"
+  skip_tls: false                     # set true for self-signed certs
+  tls_ca_cert: "/path/to/ca.pem"      # CA certificate
+  tls_cert: "/path/to/cert.pem"       # client certificate (mTLS)
+  tls_key: "/path/to/key.pem"         # client key
+```
+
+**Portainer API (takes priority over socket/TCP):**
+```yaml
+docker:
+  portainer_url: "https://portainer.example.com"
+  portainer_api_key: "ptr_XXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+  portainer_env_id: 1                  # Portainer environment/endpoint ID
+```
+
 **Field Descriptions:**
-- `socket` - Docker socket path or TCP endpoint
+- `socket` - Docker socket path, TCP endpoint, or HTTPS URL
   - Unix socket: `unix:///var/run/docker.sock`
-  - TCP: `tcp://192.168.1.100:2375`
+  - TCP: `tcp://192.168.1.100:2375` (no TLS) or `tcp://docker.example.com:2376` (with TLS)
+- `skip_tls` - Skip TLS certificate verification (for self-signed certs)
+- `tls_ca_cert` / `tls_cert` / `tls_key` - Paths to TLS certificates for mTLS
+- `portainer_url` - Portainer instance URL (when set, containers are fetched via Portainer API)
+- `portainer_api_key` - API access token (from Portainer > Account Settings > Access tokens)
+- `portainer_env_id` - Portainer environment/endpoint ID (default: 1)
 - `monitor_containers` - List of container names to monitor (leave empty for all)
+
+> **Connection priority:** Portainer > Remote Docker (TCP/TLS) > Local socket
 
 #### Services Configuration
 
