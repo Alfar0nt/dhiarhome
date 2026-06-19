@@ -1,0 +1,127 @@
+# dhiarhome Demo Configuration
+# This config is for demo/showcase purposes only.
+# All data is mock — no real API calls are made.
+
+proxmox:
+  node_name: "pve"
+
+docker:
+  monitor_containers:
+    - "nginx"
+    - "pihole"
+
+services:
+  - name: "Personal Website"
+    url: "https://example.com"
+  - name: "Nextcloud"
+    url: "https://nextcloud.example.com"
+  - name: "PDF Tools"
+    url: "https://pdftools.example.com"
+  - name: "Uptime Kuma"
+    url: "https://kuma.example.com"
+  - name: "Home Assistant"
+    url: "https://ha.example.com"
+  - name: "Vaultwarden"
+    url: "https://vault.example.com"
+
+appearance:
+  background_url: "https://images.unsplash.com/photo-1542051841857-5f90071e7989?w=1920&q=80"
+  background_opacity: 0.4
+  background_blur: 3
+  logo: ""
+  theme: "dark"
+  card_opacity: 0.6
+  card_blur: 12
+  accent_color: "#3b82f6"
+
+widgets:
+  weather:
+    enabled: true
+    units: "celsius"
+  datetime:
+    enabled: true
+    timezone: "Asia/Jakarta"
+    format_24h: true
+  system_info:
+    enabled: true
+  custom_text:
+    enabled: true
+    title: "Welcome"
+    content: "dhiarhome homelab dashboard\nPowered by Go + HTMX"
+
+network:
+  enabled: true
+  show_speed: true
+  show_total_transfer: true
+  update_interval: 3
+  interfaces:
+    - name: "eth0"
+      label: "Primary"
+    - name: "wlan0"
+      label: "WiFi"
+
+todos:
+  enabled: true
+  file_path: "data/todos.json"
+  title: "To-Do"
+
+bookmarks:
+  - group: "Infrastructure"
+    links:
+      - name: "Proxmox VE"
+        url: "https://192.168.1.100:8006"
+        icon: "server"
+        description: "Virtualization"
+        new_tab: true
+      - name: "Portainer"
+        url: "https://192.168.1.100:9443"
+        icon: "container"
+        description: "Docker management"
+        new_tab: true
+      - name: "Grafana"
+        url: "https://grafana.example.com"
+        icon: "monitor"
+        description: "Monitoring"
+        new_tab: true
+      - name: "Uptime Kuma"
+        url: "https://kuma.example.com"
+        icon: "database"
+        description: "Uptime monitor"
+        new_tab: true
+      - name: "Pi-hole"
+        url: "https://pihole.example.com"
+        icon: "settings"
+        description: "DNS filter"
+        new_tab: true
+  - group: "Media"
+    links:
+      - name: "Plex"
+        url: "https://plex.example.com"
+        icon: "play-circle"
+        description: "Media server"
+        new_tab: true
+      - name: "Sonarr"
+        url: "https://sonarr.example.com"
+        icon: "tv"
+        description: "TV series"
+        new_tab: true
+      - name: "Radarr"
+        url: "https://radarr.example.com"
+        icon: "film"
+        description: "Movies"
+        new_tab: true
+      - name: "Prowlarr"
+        url: "https://prowlarr.example.com"
+        icon: "home"
+        description: "Indexers"
+        new_tab: true
+      - name: "Jellyfin"
+        url: "https://jellyfin.example.com"
+        icon: "globe"
+        description: "Media server"
+        new_tab: true
+      - name: "Bazarr"
+        url: "https://bazarr.example.com"
+        icon: "database"
+        description: "Subtitles"
+        new_tab: true

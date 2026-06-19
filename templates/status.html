@@ -1,36 +1,3 @@
-<div x-data="{ toasts: {{ json .Transitions }} }"
-     x-init="
-       $nextTick(() => {
-         toasts.forEach((t, i) => {
-           setTimeout(() => {
-             const el = document.getElementById('toast-' + i);
-             if (el) el.style.opacity = '0';
-             setTimeout(() => { if (el) el.remove(); }, 400);
-           }, 4000);
-         });
-       })
-     "
-     class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
-     style="max-width: 360px;">
-  <template x-for="(t, i) in toasts" :key="i">
-    <div :id="'toast-' + i"
-         class="pointer-events-auto px-4 py-3 rounded-lg shadow-xl text-sm font-medium transition-all duration-300 translate-x-0"
-         :class="t.new_state === 'Online' || t.new_state === 'running' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'">
-      <div class="flex items-center gap-2">
-        <span x-text="t.new_state === 'Online' || t.new_state === 'running' ? '🟢' : '🔴'"></span>
-        <span>
-          <strong x-text="t.name"></strong>
-          <span x-text="' (' + t.type + ')'"></span>
-        </span>
-      </div>
-      <div class="ml-1 text-xs opacity-90">
-        <span x-text="t.old_state + ' → ' + t.new_state"></span>
-        <span x-text="' · ' + t.timestamp" class="opacity-70"></span>
-      </div>
-    </div>
-  </template>
-</div>
-
 {{ template "widgets.html" . }}
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -272,8 +239,9 @@
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                     </button>
                 </h2>
-                <div x-show="infoServices" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+                <div x-show="infoServices" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300 space-y-1">
                     <p>Uptime monitoring for web services. Shows <span class="text-green-400">Online</span> / <span class="text-red-400">Offline</span> status with response time. Green ping = healthy.</p>
+                    <p class="text-amber-400/80"><strong>Demo mode:</strong> Click the refresh icon on any service to toggle it Online/Offline and see the toast notification appear in the top-right corner.</p>
                 </div>
                 <div class="space-y-2 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
                     {{ range .Services }}
@@ -296,6 +264,15 @@
                             {{ else }}
                                 <span class="px-2 py-0.5 text-xs font-semibold text-red-400 bg-red-400/10 rounded-full border border-red-400/20">Offline</span>
                             {{ end }}
+                            <button
+                                @click="fetch('/api/services/toggle?name={{ .Name }}', { method: 'PUT' }).then(r => r.json()).then(data => { window.dispatchEvent(new CustomEvent('show-toast', { detail: { name: data.name, type: data.type || 'service', old_state: data.old_state, new_state: data.new_state, timestamp: new Date().toLocaleTimeString('en-GB') } })); htmx.trigger('#dashboard-content', 'htmx:refresh'); })"
+                                class="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                                title="Toggle service status (demo mode)"
+                            >
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H9"/>
+                                </svg>
+                            </button>
                         </div>
                     </div>
                     {{ else }}
@@ -316,21 +293,35 @@
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
             </button>
         </h2>
-        <div x-show="infoOpen" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
+        <div x-show="infoOpen" x-cloak class="mb-4 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300 space-y-1">
             <p>Container runtime status from Docker. Shows <span class="text-cyan-400">Up</span> (running) or <span class="text-gray-400">Down</span> (stopped/exited) for each container.</p>
+            <p class="text-amber-400/80"><strong>Demo mode:</strong> Click the refresh icon on any container to toggle it Up/Down and see the toast notification appear in the top-right corner.</p>
         </div>
         <div class="space-y-3 max-h-[230px] overflow-y-auto pr-1" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
             {{ range .Containers }}
+            {{ $cName := index .Names 0 }}
+            {{ $cNameClean := trimPrefix $cName "/" }}
             <div class="p-3 glass-inner" tabindex="0" aria-label="Container {{ range .Names }}{{ . }}{{ end }}: {{ .State }}">
                 <div class="flex items-center justify-between mb-1">
                     <span class="text-white font-semibold text-base truncate">
                         {{ range .Names }} {{ . }} {{ end }}
                     </span>
-                    {{ if eq .State "running" }}
-                        <span class="px-2 py-0.5 text-xs uppercase tracking-wider font-bold text-cyan-400 bg-cyan-400/10 rounded border border-cyan-400/20" aria-label="Running">Up</span>
-                    {{ else }}
-                        <span class="px-2 py-0.5 text-xs uppercase tracking-wider font-bold text-gray-400 bg-gray-400/10 rounded border border-gray-400/20" aria-label="Stopped">Down</span>
-                    {{ end }}
+                    <div class="flex items-center gap-2">
+                        {{ if eq .State "running" }}
+                            <span class="px-2 py-0.5 text-xs uppercase tracking-wider font-bold text-cyan-400 bg-cyan-400/10 rounded border border-cyan-400/20" aria-label="Running">Up</span>
+                        {{ else }}
+                            <span class="px-2 py-0.5 text-xs uppercase tracking-wider font-bold text-gray-400 bg-gray-400/10 rounded border border-gray-400/20" aria-label="Stopped">Down</span>
+                        {{ end }}
+                        <button
+                            @click="fetch('/api/containers/toggle?name={{ $cNameClean }}', { method: 'PUT' }).then(r => r.json()).then(data => { window.dispatchEvent(new CustomEvent('show-toast', { detail: { name: data.name, type: data.type || 'container', old_state: data.old_state, new_state: data.new_state, timestamp: new Date().toLocaleTimeString('en-GB') } })); htmx.trigger('#dashboard-content', 'htmx:refresh'); })"
+                            class="p-1 rounded hover:bg-white/10 text-gray-400 hover:text-white transition-colors"
+                            title="Toggle container status (demo mode)"
+                        >
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H9"/>
+                            </svg>
+                        </button>
+                    </div>
                 </div>
                 <p class="text-sm text-gray-500 truncate">{{ .Status }}</p>
             </div>

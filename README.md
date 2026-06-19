@@ -1,6 +1,8 @@
-# dhiarhome
+# dhiarhome — Demo Branch
 
-A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, web services, media services (Sonarr/Radarr/Overseerr), and network interfaces. Built with Go, HTMX, Alpine.js, and Tailwind CSS.
+> **This is the demo branch.** It is not intended for deployment or production use. All data is mock/cosmetic — no real API calls are made. For the full-featured production version, see the `main` branch.
+
+A lightweight homelab monitoring dashboard showcasing Proxmox VE, Docker containers, web services, media services, and network monitoring — all rendered with a glassmorphism UI. Built with Go, HTMX, Alpine.js, and Tailwind CSS.
 
 | Dark Mode | Light Mode |
 |-----------|-----------|
@@ -8,46 +10,22 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 
 ---
 
-## What is dhiarhome?
+## What This Demo Showcases
 
-**dhiarhome** is an ultra-lightweight web dashboard for homelab servers. Real-time visibility into:
+Everything runs on **mock data** — no Proxmox server, Docker daemon, or external APIs needed:
 
-- **Proxmox VE** — CPU, RAM, multi-disk usage, CPU model/core/thread info
-- **Docker containers** — status and state
-- **Web services** — uptime with response times
-- **Media services** — Sonarr/Radarr/Overseerr stats with WebUI links
+- **Proxmox VE** — CPU, RAM, multi-disk usage, CPU info, VM/LXC status
+- **Docker containers** — status with interactive toggle (Up/Down)
+- **Web services** — uptime with response times and interactive toggle (Online/Offline)
+- **Media services** — Sonarr/Radarr/Overseerr stats (mock)
 - **Bookmarks** — custom links with auto-fetched favicons
-- **Network interfaces** — RX/TX speeds per interface
-- **Interactive to-do list** — add, toggle, delete (persisted to JSON)
-- **Weather + time** — combined card with live clock, Open-Meteo weather
+- **Network interfaces** — simulated RX/TX speeds
+- **To-do list** — interactive Alpine.js widget (persisted to JSON)
+- **Weather + time** — combined card with live clock and mock weather
 - **System info** — hostname, OS, uptime, Go runtime stats
-- **Glassmorphism UI** — transparent cards, custom backgrounds, live indicator
-- **Telegram alerts** — service/Docker state transitions with cooldown, silent hours
-- **Auto-refreshing** — HTMX polling with DOM diff (no flicker)
-- **Mock mode** — test without real credentials
-- **Single binary** — ~15MB, zero database
-
----
-
-## Features
-
-- **Proxmox** — CPU model + cores/threads, RAM, multi-disk, VM/LXC, uptime
-- **Docker** — all containers with up/down status
-- **Web services** — health checks with response times
-- **Media services** — Sonarr/Radarr/Overseerr stats, clickable WebUI
-- **Network** — per-interface RX/TX speeds (via /proc/net/dev)
-- **Bookmarks** — custom links with auto-fetched favicons
-- **To-do list** — Alpine.js interactive, persisted to JSON
-- **Weather + time** — live clock, Open-Meteo forecast, timezone support
-- **System info** — hostname, OS, uptime, Go memory
-- **Glassmorphism UI** — blur cards, custom backgrounds, accent color, dark/light toggle
-- **DOM diff swap** — no backdrop flicker on refresh
-- **5s auto-refresh** — HTMX polling with merge-swap
-- **Toast notifications** — real-time popup alerts on service/Docker state changes
-- **Telegram notifications** — service/Docker up/down alerts with cooldown & silent hours
-- **Responsive** — 2-col mobile, 4-col desktop widget grid
-- **YAML config** — no code changes needed
-- **Mock mode** — test everything without real servers
+- **Glassmorphism UI** — transparent cards, custom backgrounds, dark/light theme toggle
+- **Toast notifications** — popup alerts on service/container toggle
+- **Auto-refreshing** — HTMX 5s polling with custom DOM-diff (no backdrop-filter flicker)
 
 ---
 
@@ -56,106 +34,107 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **Backend:** Go 1.26 (statically compiled, single binary)
 - **Frontend:** HTML5 + Tailwind CSS + HTMX 1.9.10 + Alpine.js 3.x
 - **Config:** YAML
-- **Deploy:** Docker multi-stage or bare metal
 
 ---
 
 ## Quick Start
 
-### Option 1: Docker (Recommended)
-
 ```bash
-# Clone the repository
-git clone https://github.com/Alfar0nt/dhiarhome.git
+# Clone the repository (demo branch)
+git clone -b demo https://github.com/Alfar0nt/dhiarhome.git
 cd dhiarhome
 
-# Create your config file
-cp config-example.yaml config.yaml
-nano config.yaml  # Edit with your settings
+# Run directly
+go run .
 
-# Build and run
-docker build -t dhiarhome .
-docker run -d \
-  -p 8080:8080 \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  dhiarhome
+# Or build and run
+go build -o dhiarhome .
+./dhiarhome
 ```
 
-Open `http://localhost:8080` in your browser.
+Open `http://localhost:8080` in your browser. That's it — no Docker, no API credentials, no setup needed.
 
-### Option 2: Build from Source
+### Command-line flags
 
 ```bash
-# Install Go from https://go.dev/
-
-# Clone and build
-git clone https://github.com/Alfar0nt/dhiarhome.git
-cd dhiarhome
-cp config-example.yaml config.yaml
-go build -o dhiarhome main.go
-./dhiarhome               # uses config.yaml, :8080
-./dhiarhome --config myconfig.yaml --addr :9090
+./dhiarhome --config myconfig.yaml   # Custom config path (default: config.yaml)
+./dhiarhome --addr :9090             # Custom listen address (default: :8080)
 ```
-
-For detailed deployment instructions, see [documentation/deployment.md](documentation/deployment.md).
 
 ---
 
 ## Configuration
 
-All customization happens in `config.yaml`—no code changes needed!
+All customization is in `config.yaml`. The included config is pre-configured for the demo — edit it to change services, bookmarks, widgets, or appearance.
 
-### 1. Copy the example config
-```bash
-cp config-example.yaml config.yaml
-```
-
-### 2. Edit your settings
-
-**Add websites to monitor:**
+### Services (mock-monitored)
 ```yaml
 services:
-  - name: "My Website"
+  - name: "Personal Website"
     url: "https://example.com"
   - name: "Nextcloud"
     url: "https://nextcloud.example.com"
 ```
 
-**Configure Proxmox monitoring:**
+### Appearance
 ```yaml
-proxmox:
-  url: "https://192.168.1.100:8006/api2/json"
-  node_name: "pve"
-  token_id: "root@pam!dashboard"
-  token_secret: "YOUR-SECRET-UUID"
-  mock: false  # Set to true for testing
+appearance:
+  theme: "dark"              # "dark" or "light"
+  accent_color: "#3b82f6"    # Accent color hex
+  card_opacity: 0.6          # Card background opacity
+  card_blur: 12              # Card backdrop blur (px)
 ```
 
-**Filter Docker containers:**
+### Widgets
 ```yaml
-docker:
-  socket: "unix:///var/run/docker.sock"
-  monitor_containers:
-    - "nginx"
-    - "pihole"
+widgets:
+  weather:
+    enabled: true
+    units: "celsius"          # "celsius" or "fahrenheit"
+  datetime:
+    enabled: true
+    timezone: "Asia/Jakarta"
+    format_24h: true
+  system_info:
+    enabled: true
 ```
 
-### 3. Test without real data
+### Network (mock)
+```yaml
+network:
+  enabled: true
+  show_speed: true
+  show_total_transfer: true
+  interfaces:
+    - name: "eth0"
+      label: "Primary"
+```
 
-Set `mock: true` in the Proxmox section to see fake bouncing data for UI testing.
+---
+
+## Interactive Demo Features
+
+### Service & Container Toggles
+
+Each monitored service and Docker container has a **refresh icon button** that toggles its status:
+- Services: Online ↔ Offline
+- Containers: Up ↔ Down
+
+Toggled states persist in memory via server-side override maps. Toast notifications appear in the top-right corner showing the transition (e.g., "nginx (container): running → exited · 14:32:10"). Overrides are cleared on server restart.
+
+### Info Panels
+
+Each widget section has an **info button** (ⓘ) that reveals a description. The header's **"What am I looking at?"** button opens/closes all info panels simultaneously.
+
+### To-Do List
+
+Interactive Alpine.js widget — check/uncheck items to toggle completion. Adding and deleting are disabled in demo mode. A full-screen modal is available via the expand button.
 
 ---
 
 ## Documentation
 
-Full documentation is available in the `/documentation` folder:
-
-- **[docs.md](documentation/docs.md)** - Complete project documentation, architecture, and technical details
-- **[deployment.md](documentation/deployment.md)** - Deployment guides (Docker, bare metal, systemd, reverse proxy)
-- **[to-do.md](documentation/to-do.md)** - Feature implementation roadmap
-- **[prompt-history.md](documentation/prompt-history.md)** - Development conversation log
-- **[changelogs.md](documentation/changelogs.md)** - Version history and changes
+Full documentation is available in [documentation/docs.md](documentation/docs.md).
 
 ---
 
@@ -163,89 +142,45 @@ Full documentation is available in the `/documentation` folder:
 
 ```
 dhiarhome/
-├── main.go                    # App entry point
-├── config.yaml                # Your config (gitignored)
-├── config-example.yaml        # Template
-├── Dockerfile                 # Build
+├── main.go                      # Application entry point
+├── config.yaml                  # Demo configuration
 ├── internal/
-│   ├── bookmarks/             # Bookmark processing + favicon cache
-│   ├── cache/                 # Service state cache
-│   ├── config/                # YAML loader
-│   ├── docker/                # Docker API client
-│   ├── mediaservices/         # Sonarr/Radarr/Overseerr clients
-│   ├── monitor/               # HTTP health checker
-│   ├── network/               # /proc/net/dev monitor
-│   ├── notifications/         # Telegram notifier
-│   ├── proxmox/               # Proxmox API client
-│   ├── todo/                  # Persistent to-do store
-│   └── widgets/               # Weather, datetime, sysinfo, custom_text
+│   ├── bookmarks/               # Bookmark processing + favicon cache
+│   ├── cache/                   # Service state cache (linked list)
+│   ├── config/                  # YAML configuration loader
+│   ├── docker/                  # Docker mock data
+│   ├── mediaservices/           # Media services mock data
+│   ├── network/                 # Network mock monitor
+│   ├── proxmox/                 # Proxmox mock data + types
+│   ├── todo/                    # Persistent to-do store
+│   └── widgets/                 # Weather, datetime, sysinfo, custom_text
 ├── static/
-│   ├── index.html             # Dashboard page (Go template)
-│   └── backgrounds/           # Custom bg images
+│   └── index.html               # Dashboard page (Go template + HTMX)
 ├── templates/
-│   ├── status.html            # Status page
-│   ├── mediaservices.html     # Media services card
-│   ├── todo.html              # To-do widget (Alpine.js)
-│   ├── network.html           # Network card
-│   └── widgets/               # Widget rendering
-└── documentation/             # Docs
+│   ├── status.html              # Status template
+│   ├── mediaservices.html       # Media services card
+│   ├── todo.html                # To-do widget (Alpine.js)
+│   ├── network.html             # Network card
+│   └── bookmarks.html           # Bookmarks card
+└── documentation/
+    └── docs.md                  # Project documentation
 ```
-
----
-
-## Common Issues
-
-**"No containers found"**
-- Check if Docker socket is mounted: `-v /var/run/docker.sock:/var/run/docker.sock:ro`
-- Verify container names in `monitor_containers` (or leave empty for all)
-
-**"Proxmox API Error"**
-- Verify API token ID and secret in `config.yaml`
-- Test API access: `curl -k -H "Authorization: PVEAPIToken=TOKEN_ID=SECRET" https://PROXMOX_IP:8006/api2/json/nodes/pve/status`
-
-**Services showing "Offline"**
-- Test URLs from your server: `curl -I https://example.com`
-- Check firewall rules and network connectivity
-
-For more troubleshooting, see [documentation/deployment.md](documentation/deployment.md#troubleshooting).
 
 ---
 
 ## Why This Project?
 
-Home servers often have limited resources. Many existing dashboards are heavy and require running databases or complex setups. dhiarhome provides:
+Home servers often have limited resources. Many existing dashboards are heavy and require databases or complex setups. dhiarhome provides:
 
-- **Zero database** - All data fetched in real-time
-- **Minimal resources** - ~10-20MB RAM, <1% CPU
-- **Simple deployment** - Single binary or Docker container
-- **Easy customization** - Edit YAML, not code
-
----
-
-## Roadmap
-
-- ✅ Background images, glassmorphism theme, accessibility
-- ✅ Weather, datetime, system info, custom text widgets
-- ✅ Network interface monitoring (RX/TX speeds)
-- ✅ Interactive to-do list (Alpine.js)
-- ✅ Media services (Sonarr, Radarr, Overseerr)
-- ✅ Custom bookmarks and web links
-- ✅ Telegram notifications (service/Docker alerts with cooldown & silent hours)
-- ⬜ Additional service integrations (Plex, Portainer)
-- ⬜ Generic HTTP API widget
-
-> **v1.4.0 released** — all planned core features complete. Future work will focus on additional integrations.
-
----
-
-## Contributing
-
-This is a personal learning project, but feel free to fork and customize for your own use. If you find bugs or have suggestions, open an issue!
+- **Zero database** — all data in-memory
+- **Minimal resources** — ~10-20MB RAM, <1% CPU
+- **Single binary** — ~15MB, no dependencies
+- **Easy customization** — edit YAML, not code
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) — see the [LICENSE](LICENSE) file for details.
+This project is licensed under the [MIT License](LICENSE).
 
 Copyright (c) 2026 Dhiar Harianto

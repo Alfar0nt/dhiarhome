@@ -4,6 +4,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -150,6 +151,30 @@ func (s *Store) fetchFavicon(linkURL string) (string, string) {
 
 // fetchAndCache downloads the favicon and saves it to the cache.
 func (s *Store) fetchAndCache(faviconURL, cachePath string) {
+	// Validate URL to prevent SSRF attacks
+	parsed, err := url.Parse(faviconURL)
+	if err != nil {
+		return
+	}
+
+	// Only allow http/https schemes
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return
+	}
+
+	// Resolve hostname to check for private/internal IPs
+	host := parsed.Hostname()
+	addrs, err := net.LookupHost(host)
+	if err != nil {
+		return
+	}
+	for _, addr := range addrs {
+		ip := net.ParseIP(addr)
+		if ip != nil && isPrivateIP(ip) {
+			return // Block requests to private/internal networks
+		}
+	}
+
 	resp, err := s.httpClient.Get(faviconURL)
 	if err != nil {
 		return
@@ -169,6 +194,30 @@ func (s *Store) fetchAndCache(faviconURL, cachePath string) {
 	}
 
 	os.WriteFile(cachePath, data, 0644)
+}
+
+// isPrivateIP checks if an IP address is private, loopback, or link-local.
+func isPrivateIP(ip net.IP) bool {
+	privateRanges := []string{
+		"127.0.0.0/8",    // Loopback
+		"10.0.0.0/8",     // Private
+		"172.16.0.0/12",  // Private
+		"192.168.0.0/16", // Private
+		"169.254.0.0/16", // Link-local (AWS metadata, etc.)
+		"::1/128",        // IPv6 loopback
+		"fc00::/7",       // IPv6 unique local
+		"fe80::/10",      // IPv6 link-local
+	}
+	for _, cidr := range privateRanges {
+		_, network, err := net.ParseCIDR(cidr)
+		if err != nil {
+			continue
+		}
+		if network.Contains(ip) {
+			return true
+		}
+	}
+	return false
 }
 
 // isLucideIcon checks if the icon name is a known Lucide icon.

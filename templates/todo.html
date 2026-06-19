@@ -4,10 +4,8 @@
     todos: {{ if .Todos }}[{{ range .Todos }}
         { id: {{ .ID }}, text: {{ .Text | printf "%q" }}, done: {{ .Done }}, created_at: {{ .CreatedAt | printf "%q" }}, done_at: {{ .DoneAt | printf "%q" }} },{{ end }}
     ]{{ else }}[]{{ end }},
-    newText: '',
     showModal: false,
     infoOpen: false,
-    MAX_TODOS: 15,
     get doneCount() {
         return this.todos.filter(function(t) { return t.done; }).length;
     },
@@ -15,33 +13,6 @@
         return this.todos.slice().sort(function(a, b) {
             if (a.done !== b.done) return a.done ? 1 : -1;
             return a.id - b.id;
-        });
-    },
-    addTodo() {
-        var text = this.newText.trim();
-        if (!text) return;
-        var self = this;
-        var tempTodo = { id: -Date.now(), text: text, done: false, created_at: new Date().toISOString() };
-        self.todos = self.todos.concat([tempTodo]);
-        self.newText = '';
-        fetch('/api/todos', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text: text })
-        })
-        .then(function(r) {
-            if (!r.ok) throw new Error('API error');
-            return r.json();
-        })
-        .then(function(realTodo) {
-            self.todos = self.todos.map(function(t) {
-                return t.id === tempTodo.id ? realTodo : t;
-            });
-            self.maybeCleanup();
-        })
-        .catch(function(e) {
-            self.todos = self.todos.filter(function(t) { return t.id !== tempTodo.id; });
-            console.error('Failed to add todo:', e);
         });
     },
     toggleTodo(id) {
@@ -53,23 +24,6 @@
             return t;
         });
         fetch('/api/todos/' + id, { method: 'PUT' }).catch(function() {});
-    },
-    deleteTodo(id) {
-        var self = this;
-        self.todos = self.todos.filter(function(t) { return t.id !== id; });
-        fetch('/api/todos/' + id, { method: 'DELETE' }).catch(function() {});
-    },
-    maybeCleanup() {
-        if (this.todos.length > this.MAX_TODOS) {
-            var doneIds = this.todos.filter(function(t) { return t.done; }).map(function(t) { return t.id; });
-            if (doneIds.length > 0) {
-                var self = this;
-                self.todos = self.todos.filter(function(t) { return !t.done; });
-                doneIds.forEach(function(id) {
-                    fetch('/api/todos/' + id, { method: 'DELETE' }).catch(function() {});
-                });
-            }
-        }
     },
     formatDate(dateStr) {
         if (!dateStr) return '';
@@ -109,30 +63,10 @@
 
     <!-- Info panel -->
     <div x-show="infoOpen" x-cloak class="mb-3 p-3 rounded-lg bg-white/5 border border-white/10 text-xs text-gray-300">
-        <p>Interactive to-do list. Add tasks via the input field, check them off when done, or delete with the <span class="text-red-400">✕</span> button. Persisted to JSON — data survives restarts.</p>
+        <p>Demo to-do list. Check or uncheck items to track progress. Pre-populated with placeholder tasks — adding and deleting are disabled to prevent spam.</p>
     </div>
 
-    <!-- Add new todo -->
-    <div class="flex items-center space-x-2 mb-3">
-        <input
-            type="text"
-            x-model="newText"
-            @keydown.enter="addTodo()"
-            placeholder="Add a new task..."
-            class="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-colors"
-            maxlength="200"
-            autocomplete="off"
-            aria-label="New todo text"
-        >
-        <button
-            type="button"
-            @click="addTodo()"
-            class="px-3 py-1.5 bg-amber-500/20 text-amber-400 text-xs font-semibold rounded-lg border border-amber-400/20 hover:bg-amber-500/30 active:bg-amber-500/40 transition-colors cursor-pointer"
-            aria-label="Add todo"
-        >
-            Add
-        </button>
-    </div>
+
 
     <!-- Scrollable todo list (compact widget view) -->
     <div class="flex-1 min-h-0 overflow-y-auto max-h-[72px]" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.1) transparent;">
@@ -158,21 +92,13 @@
                         :class="item.done ? 'text-gray-500 line-through italic' : 'text-white'"
                         x-text="item.text"
                     ></span>
-                    <button
-                        @click="deleteTodo(item.id)"
-                        class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
-                        aria-label="Delete todo"
-                    >
-                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                        </svg>
-                    </button>
+
                 </div>
             </template>
         </div>
 
         <div x-show="todos.length === 0" class="text-center py-3">
-            <p class="text-gray-500 text-xs">No tasks yet. Add one above!</p>
+            <p class="text-gray-500 text-xs">No tasks yet.</p>
         </div>
     </div>
 </div>
@@ -214,27 +140,7 @@
             </div>
         </div>
 
-        <!-- Modal Add Input -->
-        <div class="flex items-center space-x-2 mb-5 flex-shrink-0">
-            <input
-                type="text"
-                x-model="newText"
-                @keydown.enter="addTodo()"
-                placeholder="Add a new task..."
-                class="flex-1 min-w-0 bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-base text-white placeholder-gray-400 focus:outline-none focus:border-amber-400/50 focus:ring-1 focus:ring-amber-400/30 transition-colors"
-                maxlength="200"
-                autocomplete="off"
-                aria-label="New todo text"
-            >
-            <button
-                type="button"
-                @click="addTodo()"
-                class="px-5 py-3 bg-amber-500/30 text-amber-300 text-base font-semibold rounded-lg border border-amber-400/30 hover:bg-amber-500/40 active:bg-amber-500/50 transition-colors cursor-pointer"
-                aria-label="Add todo"
-            >
-                Add
-            </button>
-        </div>
+
 
         <!-- Modal Scrollable List -->
         <div class="flex-1 overflow-y-auto pb-4" style="scrollbar-width: thin; scrollbar-color: rgba(255,255,255,0.2) transparent; -webkit-overflow-scrolling: touch;">
@@ -266,22 +172,14 @@
                                 <span class="text-[11px] text-amber-500/70" x-show="item.done && item.done_at" x-text="'Done ' + formatDate(item.done_at)"></span>
                             </div>
                         </div>
-                        <button
-                            @click="deleteTodo(item.id)"
-                            class="flex-shrink-0 opacity-60 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
-                            aria-label="Delete todo"
-                        >
-                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                            </svg>
-                        </button>
+
                     </div>
                 </template>
             </div>
 
             <div x-show="todos.length === 0" class="text-center py-20">
                 <svg class="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"></path></svg>
-                <p class="text-gray-500 text-base">No tasks yet. Add one above!</p>
+                <p class="text-gray-500 text-base">No tasks yet.</p>
             </div>
         </div>
     </div>

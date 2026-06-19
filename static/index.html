@@ -375,6 +375,36 @@
     <div id="bg-overlay" aria-hidden="true" style="position: fixed; inset: 0; z-index: -1; background: rgba(15, 23, 42, var(--bg-overlay-opacity)); pointer-events: none;"></div>
     {{ end }}
 
+    <!-- Toast Notifications (outside HTMX zone, managed by Alpine.js) -->
+    <div x-data="{ toasts: [], nextId: 0 }"
+         @show-toast.window="
+             const t = $event.detail;
+             const id = nextId++;
+             toasts.push({ ...t, id });
+             setTimeout(() => {
+                 toasts = toasts.filter(x => x.id !== id);
+             }, 4500);
+         "
+         class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"
+         style="max-width: 360px;">
+      <template x-for="t in toasts" :key="t.id">
+        <div class="pointer-events-auto px-4 py-3 rounded-lg shadow-xl text-sm font-medium transition-all duration-300"
+             :class="t.new_state === 'Online' || t.new_state === 'running' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'">
+          <div class="flex items-center gap-2">
+            <span x-text="t.new_state === 'Online' || t.new_state === 'running' ? '🟢' : '🔴'"></span>
+            <span>
+              <strong x-text="t.name"></strong>
+              <span x-text="' (' + t.type + ')'"></span>
+            </span>
+          </div>
+          <div class="ml-1 text-xs opacity-90">
+            <span x-text="t.old_state + ' → ' + t.new_state"></span>
+            <span x-text="' · ' + t.timestamp" class="opacity-70"></span>
+          </div>
+        </div>
+      </template>
+    </div>
+
     <div id="scroll-container" class="p-4 md:p-8">
     <div class="max-w-6xl mx-auto md:max-w-none">
 

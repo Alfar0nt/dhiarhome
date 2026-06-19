@@ -2,10 +2,7 @@
 dhiarhome
 dashboard
 
-# Configuration files with secrets
-config.yaml
-
-# Persistent data files (todo list, etc.)
+# Persistent data files (todo list, favicon cache, etc.)
 data/
 
 # OS generated files
