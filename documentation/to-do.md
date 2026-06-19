@@ -672,6 +672,20 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 
 ---
 
+## Backlog / Future Improvements
+
+### B.1 — Fix CSP to Allow Google Fonts
+- [ ] Add `https://fonts.googleapis.com` to `style-src` in Content-Security-Policy header (`main.go:137`)
+- [ ] Current CSP blocks Google Fonts stylesheet; Inter font falls back to system stack once cache expires
+- [ ] Add `https://fonts.gstatic.com` to `font-src` (already present) — only `style-src` needs updating
+
+### B.2 — Proxmox LVM/Local-Thin Disk Monitoring
+- [ ] Current disk API endpoint (`/nodes/{node}/disks/list`) returns disks but skips entries with empty mountpoints
+- [ ] LVM thin pools like `local-lvm` have no mountpoint, so they're filtered out
+- [ ] Fix: use Proxmox storage API endpoint `/nodes/{node}/storage` or `/nodes/{node}/disks/lvmthin` to fetch LVM pool usage
+- [ ] Parse `used` and `total` from storage status response, add to disk list
+- [ ] Filter: only include LVM thin pools, skip already-listed mountpoints
+
 ## Quick Reference: File Changes by Step
 
 | Step | Files Modified/Created |
@@ -747,7 +761,8 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 10. UI & Theme Toggle | 4 | 4 | 0 | **Complete** |
 | 11. Telegram Notifications | 3 | 3 | 0 | **Complete** |
 | 12. Historical Graphs | 3 | 0 | 3 | **Pending** |
-| **Total** | **58** | **44** | **14** |
+| B. Backlog | 2 | 0 | 2 | **Pending** |
+| **Total** | **60** | **44** | **16** |
 
 > **v1.4.0:** Phase 11 complete — Telegram notifications for service and Docker container state transitions with cooldown, silent hours, mock mode, and test endpoint.
 > **v1.3.2:** Phase 10 complete — inline SVG favicon, configurable logo (file/URL), header logo, bigger widget text across all templates, dark/light theme toggle with localStorage persistence.
