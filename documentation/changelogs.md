@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.4.4] - 2026-06-20 - GitHub Button, Footer & Security Hardening
+
+### Added
+- **GitHub button** — Icon button in page header (top-right, before theme toggle) linking to the dhiarhome repository
+- **Footer section** — Glassmorphism footer below the dashboard with:
+  - Tech stack credits: "Built with dhiarhome · Go · HTMX · Alpine.js"
+  - "Star on GitHub" link with GitHub icon
+  - "About the author" link
+  - Responsive layout with `max-w-lg sm:max-w-2xl` container
+
+### Security
+- **Security headers middleware** — `securityHeaders()` wrapper applied to all HTTP responses:
+  - `Content-Security-Policy` — restricts script/style/img/font/connect sources; includes `'unsafe-eval'` for Alpine.js compatibility
+  - `X-Content-Type-Options: nosniff`
+  - `X-Frame-Options: DENY`
+  - `X-XSS-Protection: 1; mode=block`
+  - `Referrer-Policy: same-origin`
+- **SSRF protection** (`internal/bookmarks/store.go`) — Favicon fetcher now validates URL scheme (http/https only), resolves DNS, and blocks requests to private IP ranges (127.0.0.0/8, 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 169.254.0.0/16, IPv6 loopback/link-local/unique-local)
+- **JSON injection fix** (`main.go`) — `backgroundHandler` now uses `json.NewEncoder` instead of `fmt.Fprintf` to safely encode JSON responses
+
+### Files Modified
+- `static/index.html` — GitHub button in header, footer section
+- `main.go` — Security headers middleware, JSON injection fix in backgroundHandler
+- `internal/bookmarks/store.go` — SSRF protection (URL validation, DNS resolution, private IP blocking)
+- `documentation/changelogs.md` — This entry
+- `documentation/docs.md` — GitHub button, footer, and security headers documented
+- `README.md` — Version bumped to 1.4.4
+
+---
+
 ## [1.4.3] - 2026-06-20 - Command-Line Flags (Config Path & Port)
 
 ### Added
@@ -1170,3 +1200,9 @@ personalProject-Dashboard/
 | 1.2.0 | 2026-06-19 | Phase 8: extra disk monitoring (auto-detect + manual override) |
 | 1.3.0 | 2026-06-19 | Phase 9: remote Docker TLS + Portainer API integration |
 | 1.3.1 | 2026-06-19 | UI refinements: full-screen todo modal, date tracking, CPU/Memory widget |
+| 1.3.2 | 2026-06-19 | Phase 10: logo, theme toggle, bigger text, light mode support |
+| 1.4.0 | 2026-06-19 | Phase 11: Telegram notifications (service/Docker alerts) |
+| 1.4.1 | 2026-06-19 | Toast notifications (web UI), Telegram URL enhancement |
+| 1.4.2 | 2026-06-19 | Security hardening: binary stripping, config permissions |
+| 1.4.3 | 2026-06-20 | Command-line flags: --config and --addr |
+| 1.4.4 | 2026-06-20 | GitHub button, footer, security headers middleware, SSRF protection |

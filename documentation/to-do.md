@@ -764,6 +764,10 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | B. Backlog | 2 | 0 | 2 | **Pending** |
 | **Total** | **60** | **44** | **16** |
 
+> **v1.4.4:** GitHub button in header, glassmorphism footer section, security headers middleware (CSP, X-Frame-Options, etc.), SSRF protection for favicon fetcher, JSON injection fix.
+> **v1.4.3:** Command-line flags `--config` and `--addr` for custom config path and listen address.
+> **v1.4.2:** Security hardening — binary stripping (14MB → 9.6MB), config.yaml permissions restricted.
+> **v1.4.1:** Toast notifications (web UI popups for service/Docker state transitions), Telegram URL enhancement.
 > **v1.4.0:** Phase 11 complete — Telegram notifications for service and Docker container state transitions with cooldown, silent hours, mock mode, and test endpoint.
 > **v1.3.2:** Phase 10 complete — inline SVG favicon, configurable logo (file/URL), header logo, bigger widget text across all templates, dark/light theme toggle with localStorage persistence.
 > **v1.3.1:** UI refinements — full-screen todo modal with date tracking, CPU/Memory widget vertical stretch and divider.

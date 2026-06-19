@@ -87,6 +87,21 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **Todo modal light mode** — Overlay switches from `bg-gray-900/95` to light `rgba(226, 232, 240, 0.95)`; modal content backgrounds, borders, text, and buttons adapt to light theme
 - **Bigger widget text** — All primary metric values increased from `text-sm` to `text-base`, section titles from `text-lg`/`text-xl` to `text-xl`/`text-2xl`, labels from `text-[10px]`/`text-[11px]` to `text-xs`
 - **Metric label CSS** — `.metric-label` font-size increased from `0.6875rem` to `0.75rem`
+- **GitHub button** — GitHub icon button in the page header (top-right, before theme toggle) linking to the dhiarhome repository with glassmorphism styling
+- **Footer** — Glassmorphism footer below the dashboard content with tech stack credits ("Built with dhiarhome · Go · HTMX · Alpine.js"), "Star on GitHub" link with icon, and "About the author" link. Responsive `max-w-lg sm:max-w-2xl` container
+
+### 9. Security
+- **Security headers middleware** — `securityHeaders()` wrapper applied to all HTTP responses:
+  - `Content-Security-Policy` — restricts script/style/img/font/connect sources; `'unsafe-eval'` included for Alpine.js runtime expression evaluation
+  - `X-Content-Type-Options: nosniff` — prevents MIME-type sniffing
+  - `X-Frame-Options: DENY` — prevents clickjacking via iframe embedding
+  - `X-XSS-Protection: 1; mode=block` — legacy XSS filter for older browsers
+  - `Referrer-Policy: same-origin` — limits referrer information sent to external sites
+- **SSRF protection** — Favicon fetcher (`internal/bookmarks/store.go`) validates URL scheme (http/https only), resolves DNS before fetching, and blocks requests to private IP ranges (loopback, RFC 1918, link-local, IPv6 ULA)
+- **JSON injection prevention** — `backgroundHandler` uses `json.NewEncoder` for safe JSON encoding instead of string formatting
+- **Path traversal protection** — `backgroundServeHandler` uses `filepath.Clean()` and rejects paths containing `..`
+- **Per-IP rate limiting** — 30 requests/min on `/api/todos` endpoints with sliding window
+- **Input validation** — Todo text capped at 500 characters
 
 ---
 

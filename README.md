@@ -45,6 +45,7 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **5s auto-refresh** — HTMX polling with merge-swap
 - **Toast notifications** — real-time popup alerts on service/Docker state changes
 - **Telegram notifications** — service/Docker up/down alerts with cooldown & silent hours
+- **Security hardening** — CSP headers, SSRF protection, rate limiting, path traversal protection
 - **Responsive** — 2-col mobile, 4-col desktop widget grid
 - **YAML config** — no code changes needed
 - **Mock mode** — test everything without real servers
@@ -234,7 +235,7 @@ Home servers often have limited resources. Many existing dashboards are heavy an
 - ⬜ Additional service integrations (Plex, Portainer)
 - ⬜ Generic HTTP API widget
 
-> **v1.4.0 released** — all planned core features complete. Future work will focus on additional integrations.
+> **v1.4.4 released** — all planned core features complete. Future work will focus on additional integrations.
 
 ---
 
