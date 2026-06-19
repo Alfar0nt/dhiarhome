@@ -1867,3 +1867,39 @@ add the spesific url of the site. so below the service and above the status, it 
 - `internal/notifications/telegram.go` — URL parameter, message format
 - `main.go` — Updated NotifyServiceChange call with svc.URL
 - `documentation/changelogs.md` — v1.4.1 entry
+
+---
+
+## Session 38: Command-Line Flags (Config Path & Port)
+
+**Date:** June 20, 2026
+
+### User Request
+```
+if it needs to changes file, what would be changed? like adding the option to changes port or name?
+...
+youre good to go to apply those changes
+```
+
+### Implementation Summary
+
+Added `--config` and `--addr` command-line flags to allow running multiple instances with different configs/ports.
+
+**Changes to `main.go`:**
+- Added `"flag"` import
+- At start of `main()`: `configPath := flag.String("config", "config.yaml", ...)` and `listenAddr := flag.String("addr", ":8080", ...)`
+- Replaced hardcoded `"config.yaml"` with `*configPath` in config loading
+- Replaced hardcoded `":8080"` with `*listenAddr` in HTTP server and log message
+- Defaults match old hardcoded values, so existing deployments unaffected
+
+**Documentation:**
+- `README.md` — Added flags usage to Quick Start
+- `deployment.md` — Added flags section to bare metal guide
+- `changelogs.md` — v1.4.3 entry
+- `prompt-history.md` — This session
+
+### Files Modified
+- `main.go` — `--config` and `--addr` flags
+- `README.md` — Flag usage examples
+- `documentation/deployment.md` — Flag reference
+- `documentation/changelogs.md` — v1.4.3 entry

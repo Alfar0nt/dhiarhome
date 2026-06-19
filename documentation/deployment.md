@@ -238,7 +238,17 @@ CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o dhiarhome mai
 ./dhiarhome
 ```
 
-dhiarhome will start on port 8080.
+dhiarhome will start on port 8080 using `config.yaml` in the current directory.
+
+**Command-line flags:**
+```bash
+./dhiarhome                                    # default: config.yaml, :8080
+./dhiarhome --config /path/to/config.yaml      # custom config path
+./dhiarhome --addr :9090                        # custom port
+./dhiarhome --config demo.yaml --addr :9090     # both
+```
+
+Available flags: `--config` (config file path, default `config.yaml`), `--addr` (listen address, default `:8080`).
 
 #### Step 6: Run as Background Service
 

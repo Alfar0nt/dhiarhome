@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"html/template"
 	"log"
@@ -170,7 +171,12 @@ func rateLimitMiddleware(next http.Handler) http.Handler {
 
 func main() {
 	var err error
-	appConfig, err = config.LoadConfig("config.yaml")
+
+	configPath := flag.String("config", "config.yaml", "Path to config file")
+	listenAddr := flag.String("addr", ":8080", "Listen address (e.g. :8080, :9090)")
+	flag.Parse()
+
+	appConfig, err = config.LoadConfig(*configPath)
 	if err != nil {
 		log.Fatalf("Error loading config: %v", err)
 	}
@@ -337,11 +343,11 @@ func main() {
 	// Wrap entire mux with security headers
 	handler := securityHeaders(mux)
 
-	log.Println("Server listening on :8080")
+	log.Println("Server listening on", *listenAddr)
 
 	// Start HTTP server in a goroutine for graceful shutdown
 	srv := &http.Server{
-		Addr:         ":8080",
+		Addr:         *listenAddr,
 		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 30 * time.Second,

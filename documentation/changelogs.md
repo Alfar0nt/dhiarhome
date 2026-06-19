@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.4.3] - 2026-06-20 - Command-Line Flags (Config Path & Port)
+
+### Added
+- **`--config` flag** — Specify a custom config file path (default: `config.yaml`)
+- **`--addr` flag** — Specify a custom listen address/port (default: `:8080`)
+- Example: `./dhiarhome --config demo.yaml --addr :9090` runs a second instance alongside the primary
+
+### Files Modified
+- `main.go` — Added `flag` import, `--config` and `--addr` flags, replaced hardcoded `":8080"` and `"config.yaml"`
+- `README.md` — Quick Start shows flag usage
+- `documentation/deployment.md` — Bare metal section updated with flag reference
+
+---
+
 ## [1.4.2] - 2026-06-19 - Security Hardening
 
 ### Changed

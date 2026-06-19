@@ -94,7 +94,8 @@ git clone https://github.com/Alfar0nt/dhiarhome.git
 cd dhiarhome
 cp config-example.yaml config.yaml
 go build -o dhiarhome main.go
-./dhiarhome
+./dhiarhome               # uses config.yaml, :8080
+./dhiarhome --config myconfig.yaml --addr :9090
 ```
 
 For detailed deployment instructions, see [documentation/deployment.md](documentation/deployment.md).
