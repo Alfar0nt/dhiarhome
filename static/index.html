@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>dhiarhome</title>
+    {{ if .LogoSrc }}
+    <link rel="icon" type="{{ if .LogoHasFile }}image/png{{ else }}image/svg+xml{{ end }}" href="{{ .LogoSrc }}">
+    {{ else }}
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='2'%3E%3Cpath d='M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2'/%3E%3C/svg%3E">
+    {{ end }}
 
     <!-- Inter Font -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -213,7 +218,7 @@
 
         /* ─── Typography ────────────────────────────────────────────── */
         .metric-label {
-            font-size: 0.6875rem;
+            font-size: 0.75rem;
             font-weight: 600;
             letter-spacing: 0.08em;
             text-transform: uppercase;
@@ -272,6 +277,79 @@
             border-radius: 4px;
         }
 
+        /* ─── Light Theme ───────────────────────────────────────────── */
+        .light-theme {
+            --card-bg: rgba(255, 255, 255, {{ printf "%.2f" .CardOpacity }});
+            --card-border: rgba(0, 0, 0, 0.08);
+            --card-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
+            --card-hover-shadow: 0 8px 32px rgba(59, 130, 246, 0.1);
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+        }
+        .light-theme body {
+            background-color: #e2e8f0;
+        }
+        .light-theme .glass-inner {
+            background: rgba(226, 232, 240, 0.7);
+            border-color: rgba(0, 0, 0, 0.06);
+        }
+        .light-theme .glass-inner:hover {
+            border-color: rgba(0, 0, 0, 0.12);
+        }
+        .light-theme #bg-overlay {
+            background: rgba(15, 23, 42, 0.15) !important;
+        }
+        .light-theme #scroll-container {
+            scrollbar-color: rgba(0,0,0,0.1) transparent;
+        }
+        .light-theme #scroll-container::-webkit-scrollbar-thumb {
+            background-color: rgba(0,0,0,0.1);
+        }
+        .light-theme #scroll-container::-webkit-scrollbar-thumb:hover {
+            background-color: rgba(0,0,0,0.2);
+        }
+        .light-theme .text-gray-400 { color: #64748b !important; }
+        .light-theme .text-gray-500 { color: #94a3b8 !important; }
+        .light-theme .text-white { color: #1e293b !important; }
+        .light-theme .text-gray-300 { color: #334155 !important; }
+        .light-theme .text-cyan-400 { color: #0891b2 !important; }
+        .light-theme .text-blue-400 { color: #2563eb !important; }
+        .light-theme .text-green-400 { color: #16a34a !important; }
+        .light-theme .text-amber-400 { color: #d97706 !important; }
+        .light-theme .text-red-400 { color: #dc2626 !important; }
+        .light-theme .text-indigo-400 { color: #6366f1 !important; }
+        .light-theme .text-pink-400 { color: #db2777 !important; }
+        .light-theme .text-emerald-400 { color: #059669 !important; }
+        .light-theme .skeleton { background: rgba(203, 213, 225, 0.5); }
+        .light-theme .bg-white\/5 { background: rgba(0, 0, 0, 0.04) !important; }
+        .light-theme .bg-white\/10 { background: rgba(0, 0, 0, 0.06) !important; }
+        .light-theme .border-white\/10 { border-color: rgba(0, 0, 0, 0.08) !important; }
+        .light-theme .border-white\/20 { border-color: rgba(0, 0, 0, 0.12) !important; }
+        .light-theme .hover\:border-pink-400\/30:hover { border-color: rgba(219, 39, 119, 0.3) !important; }
+        .light-theme .hover\:border-cyan-400\/30:hover { border-color: rgba(8, 145, 178, 0.3) !important; }
+        .light-theme .bg-indigo-500\/10 { background: rgba(99, 102, 241, 0.08) !important; }
+        .light-theme .border-indigo-400\/20 { border-color: rgba(99, 102, 241, 0.15) !important; }
+        .light-theme .glass-inner[role="status"] .text-gray-300 { color: #475569 !important; }
+        /* Todo modal light mode override */
+        .light-theme .todo-overlay {
+            background: rgba(226, 232, 240, 0.95) !important;
+        }
+        .light-theme .todo-overlay + .relative h2.text-white,
+        .light-theme .todo-overlay + .relative .text-white { color: #1e293b !important; }
+        .light-theme .todo-overlay + .relative .bg-white\/10 { background: rgba(0, 0, 0, 0.06) !important; }
+        .light-theme .todo-overlay + .relative .border-white\/20 { border-color: rgba(0, 0, 0, 0.12) !important; }
+        .light-theme .todo-overlay + .relative .bg-white\/\[0\.03\] { background: rgba(0, 0, 0, 0.02) !important; }
+        .light-theme .todo-overlay + .relative .border-white\/\[0\.06\] { border-color: rgba(0, 0, 0, 0.06) !important; }
+        .light-theme .todo-overlay + .relative .text-gray-500 { color: #94a3b8 !important; }
+        .light-theme .todo-overlay + .relative .text-amber-500\/70 { color: rgba(217, 119, 6, 0.7) !important; }
+        .light-theme .todo-overlay + .relative .text-gray-400 { color: #64748b !important; }
+        .light-theme .todo-overlay + .relative .placeholder-gray-400::placeholder { color: #94a3b8 !important; }
+        .light-theme .todo-overlay + .relative .hover\:bg-white\/10:hover { background: rgba(0, 0, 0, 0.06) !important; }
+        .light-theme .todo-overlay + .relative .hover\:text-white:hover { color: #1e293b !important; }
+        .light-theme .todo-overlay + .relative .text-gray-600 { color: #cbd5e1 !important; }
+        .light-theme .todo-overlay + .relative .text-amber-300 { color: #b45309 !important; }
+        .light-theme .todo-overlay + .relative .border-amber-400\/30 { border-color: rgba(217, 119, 6, 0.4) !important; }
+
         /* ─── Reduced Motion ────────────────────────────────────────── */
         @media (prefers-reduced-motion: reduce) {
             *, *::before, *::after {
@@ -296,18 +374,36 @@
         <!-- Header -->
         <header class="mb-8 flex items-center justify-between">
             <div>
-                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">
-                    dhiar<span style="color: var(--accent-color)">home</span>
+                <h1 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl flex items-center gap-3">
+                    {{ if .LogoSrc }}
+                    <img src="{{ .LogoSrc }}" alt="Logo" class="w-8 h-8 sm:w-10 sm:h-10 object-contain">
+                    {{ else }}
+                    <svg class="w-8 h-8 sm:w-10 sm:h-10" fill="none" stroke="var(--accent-color)" stroke-width="2" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
+                    </svg>
+                    {{ end }}
+                    <span>dhiar<span style="color: var(--accent-color)">home</span></span>
                 </h1>
                 <p class="mt-2 text-sm text-gray-400 tracking-normal">Lightweight homelab monitoring dashboard</p>
             </div>
 
-            <div class="flex items-center space-x-2 px-3 py-1.5 rounded-full glass-inner" role="status" aria-label="Dashboard is live, data refreshes every 5 seconds">
-                <span class="relative flex h-3 w-3" aria-hidden="true">
-                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                    <span class="live-dot relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-                </span>
-                <span class="text-sm font-medium text-gray-300">Live</span>
+            <div class="flex items-center space-x-3">
+                <button id="theme-toggle" type="button" class="glass-inner px-3 py-1.5 rounded-full flex items-center space-x-1.5 cursor-pointer hover:border-white/20 transition-colors" aria-label="Toggle theme" title="Toggle theme">
+                    <svg id="theme-icon-sun" class="w-4 h-4 text-yellow-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true" style="display:none">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/>
+                    </svg>
+                    <svg id="theme-icon-moon" class="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/>
+                    </svg>
+                    <span id="theme-label" class="text-xs font-medium text-gray-400">Light</span>
+                </button>
+                <div class="flex items-center space-x-2 px-3 py-1.5 rounded-full glass-inner" role="status" aria-label="Dashboard is live, data refreshes every 5 seconds">
+                    <span class="relative flex h-3 w-3" aria-hidden="true">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="live-dot relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+                    </span>
+                    <span class="text-sm font-medium text-gray-300">Live</span>
+                </div>
             </div>
         </header>
 
@@ -331,6 +427,38 @@
 
     </div>
     </div>
+
+    <script>
+    (function() {
+        var theme = localStorage.getItem('dhiarhome-theme') || '{{ .Theme }}';
+        var html = document.documentElement;
+        var sunIcon = document.getElementById('theme-icon-sun');
+        var moonIcon = document.getElementById('theme-icon-moon');
+        var label = document.getElementById('theme-label');
+
+        function applyTheme(t) {
+            if (t === 'light') {
+                html.classList.add('light-theme');
+                sunIcon.style.display = '';
+                moonIcon.style.display = 'none';
+                label.textContent = 'Dark';
+            } else {
+                html.classList.remove('light-theme');
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = '';
+                label.textContent = 'Light';
+            }
+            localStorage.setItem('dhiarhome-theme', t);
+        }
+
+        applyTheme(theme);
+
+        document.getElementById('theme-toggle').addEventListener('click', function() {
+            var current = localStorage.getItem('dhiarhome-theme') || '{{ .Theme }}';
+            applyTheme(current === 'dark' ? 'light' : 'dark');
+        });
+    })();
+    </script>
 
 </body>
 </html>

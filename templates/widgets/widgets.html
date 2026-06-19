@@ -34,12 +34,12 @@
     <!-- Weather Widget (standalone, when datetime is disabled) -->
     <div class="glass-card p-4 h-full min-h-[190px]" tabindex="0" aria-label="Weather: {{ index .Values "condition" }}, {{ index .Values "temperature" }}">
         <div class="flex items-center justify-between mb-1">
-            <p class="metric-label text-[10px]">{{ .Label }}</p>
+            <p class="metric-label text-xs">{{ .Label }}</p>
             <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
         <p class="text-xl font-bold text-white metric-value">{{ index .Values "temperature" }}</p>
-        <p class="text-[11px] text-gray-400 mt-0.5">{{ index .Values "condition" }}</p>
-        <p class="text-[10px] text-gray-500 mt-1 tabular-nums">💨 {{ index .Values "wind_speed" }}</p>
+        <p class="text-xs text-gray-400 mt-0.5">{{ index .Values "condition" }}</p>
+        <p class="text-xs text-gray-500 mt-1 tabular-nums">💨 {{ index .Values "wind_speed" }}</p>
     </div>
     {{ end }}
 
@@ -47,12 +47,12 @@
     <!-- DateTime Widget (standalone, when weather is disabled) -->
     <div class="glass-card p-4 h-full min-h-[190px]" tabindex="0" aria-label="Current time: {{ index .Values "time" }}, {{ index .Values "date" }}">
         <div class="flex items-center justify-between mb-1">
-            <p class="metric-label text-[10px]">{{ index .Values "day" }}</p>
+            <p class="metric-label text-xs">{{ index .Values "day" }}</p>
             <span class="text-lg" aria-hidden="true">{{ .Icon }}</span>
         </div>
         <p class="text-xl font-bold text-white metric-value tabular-nums" id="widget-time">{{ index .Values "time" }}</p>
-        <p class="text-[11px] text-gray-400 mt-0.5" id="widget-date">{{ index .Values "date" }}</p>
-        <p class="text-[10px] text-gray-500 mt-1">{{ index .Values "timezone" }}</p>
+        <p class="text-xs text-gray-400 mt-0.5" id="widget-date">{{ index .Values "date" }}</p>
+        <p class="text-xs text-gray-500 mt-1">{{ index .Values "timezone" }}</p>
     </div>
     {{ end }}
 

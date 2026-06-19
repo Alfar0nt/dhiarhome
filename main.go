@@ -24,6 +24,7 @@ import (
 	"dhiarhome/internal/mediaservices"
 	"dhiarhome/internal/monitor"
 	"dhiarhome/internal/network"
+	"dhiarhome/internal/notifications"
 	"dhiarhome/internal/proxmox"
 	"dhiarhome/internal/todo"
 	"dhiarhome/internal/widgets"
@@ -72,6 +73,14 @@ func (rl *rateLimiter) Allow(ip string) bool {
 
 var apiLimiter = newRateLimiter(30, 1*time.Minute) // 30 requests/min per IP
 
+type TransitionEvent struct {
+	Name      string `json:"name"`
+	Type      string `json:"type"`
+	OldState  string `json:"old_state"`
+	NewState  string `json:"new_state"`
+	Timestamp string `json:"timestamp"`
+}
+
 type DashboardData struct {
 	Proxmox        proxmox.NodeStatus
 	CPUInfo        proxmox.CPUInfo
@@ -89,6 +98,7 @@ type DashboardData struct {
 	TodoTitle      string
 	MediaServices  []mediaservices.MediaServiceStats
 	BookmarkGroups []bookmarks.DisplayGroup
+	Transitions    []TransitionEvent
 }
 
 var (
@@ -105,6 +115,14 @@ var (
 	localCPUInfo   proxmox.CPUInfo
 	mediaStats     []mediaservices.MediaServiceStats
 	mediaStatsMu   sync.RWMutex
+
+	telegramNotifier    *notifications.Notifier
+	prevServiceStates   map[string]string
+	prevContainerStates map[string]string
+	stateMu             sync.Mutex
+
+	transitionBuffer []TransitionEvent
+	transitionMu     sync.Mutex
 )
 
 // ── Security: middleware ───────────────────────────────────────────────────────
@@ -212,6 +230,26 @@ func main() {
 		log.Printf("Bookmarks initialized: %d groups", len(appConfig.Bookmarks))
 	}
 
+	// Initialize Telegram notifier if enabled
+	if appConfig.Notifications.Telegram.Enabled {
+		telegramNotifier = notifications.NewNotifier(
+			appConfig.Notifications.Telegram.BotToken,
+			appConfig.Notifications.Telegram.ChatID,
+			appConfig.Notifications.Telegram.MessageThreadID,
+			appConfig.Notifications.Telegram.NotifyUp,
+			appConfig.Notifications.Telegram.NotifyDown,
+			appConfig.Notifications.Telegram.Cooldown,
+			appConfig.Notifications.Telegram.SilentHours,
+			appConfig.Notifications.Telegram.Mock,
+		)
+		prevServiceStates = make(map[string]string)
+		prevContainerStates = make(map[string]string)
+		log.Printf("Telegram notifier initialized (mock=%v, notify_up=%v, notify_down=%v)",
+			appConfig.Notifications.Telegram.Mock,
+			appConfig.Notifications.Telegram.NotifyUp,
+			appConfig.Notifications.Telegram.NotifyDown)
+	}
+
 	// Initialize network monitor if enabled
 	if appConfig.Network.Enabled && len(appConfig.Network.Interfaces) > 0 {
 		ifaces := make(map[string]string)
@@ -243,6 +281,10 @@ func main() {
 			}
 			return fmt.Sprintf("%.2f s", d.Seconds())
 		},
+		"json": func(v interface{}) string {
+			b, _ := json.Marshal(v)
+			return string(b)
+		},
 	}).ParseFiles("templates/status.html", "templates/widgets/widgets.html", "templates/network.html", "templates/todo.html", "templates/mediaservices.html", "templates/bookmarks.html"))
 
 	// Parse index.html as a template for dynamic appearance injection
@@ -254,6 +296,11 @@ func main() {
 	// Background poller for media services
 	if len(appConfig.MediaServices) > 0 {
 		go pollMediaServices()
+	}
+
+	// Background poller for Docker container state tracking
+	if appConfig.Notifications.Telegram.Enabled && dkClient != nil {
+		go pollContainers()
 	}
 
 	// Serve static files but handle index.html as a template
@@ -269,9 +316,15 @@ func main() {
 	mux.HandleFunc("/status", statusHandler)
 	mux.HandleFunc("/api/background", backgroundHandler)
 	mux.HandleFunc("/background", backgroundServeHandler)
+	mux.HandleFunc("/logo", logoServeHandler)
 
 	// Bookmarks favicon cache endpoint
 	mux.Handle("/bookmarks/icons/", http.StripPrefix("/bookmarks/icons/", http.FileServer(http.Dir("data/icons"))))
+
+	// Notification test endpoint
+	if appConfig.Notifications.Telegram.Enabled {
+		mux.Handle("/api/notifications/test", rateLimitMiddleware(http.HandlerFunc(notificationsTestHandler)))
+	}
 
 	// Todo API endpoints (rate-limited)
 	if appConfig.Todos.Enabled {
@@ -361,6 +414,78 @@ func pollServices() {
 	}
 }
 
+// pollContainers periodically fetches Docker containers and detects state transitions.
+func pollContainers() {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+
+	// Initial check
+	checkContainerStates()
+
+	for range ticker.C {
+		checkContainerStates()
+	}
+}
+
+func checkContainerStates() {
+	if dkClient == nil || telegramNotifier == nil {
+		return
+	}
+
+	containers, err := dkClient.GetContainers()
+	if err != nil {
+		log.Printf("Docker API Error (container monitoring): %v", err)
+		return
+	}
+
+	stateMu.Lock()
+	defer stateMu.Unlock()
+
+	// Initialize prev states map on first run
+	if prevContainerStates == nil {
+		prevContainerStates = make(map[string]string)
+	}
+
+	for _, c := range containers {
+		name := strings.TrimPrefix(c.Names[0], "/")
+		prev, exists := prevContainerStates[name]
+
+		// Only track running/exited states for meaningful transitions
+		if c.State == "running" || c.State == "exited" {
+			prevContainerStates[name] = c.State
+
+			if exists && prev != c.State {
+				go telegramNotifier.NotifyContainerChange(name, prev, c.State)
+				recordTransition(name, "container", prev, c.State)
+			}
+		}
+	}
+}
+
+func recordTransition(name, typ, oldState, newState string) {
+	transitionMu.Lock()
+	defer transitionMu.Unlock()
+	t := TransitionEvent{
+		Name:      name,
+		Type:      typ,
+		OldState:  oldState,
+		NewState:  newState,
+		Timestamp: time.Now().Format("15:04:05"),
+	}
+	transitionBuffer = append(transitionBuffer, t)
+	if len(transitionBuffer) > 20 {
+		transitionBuffer = transitionBuffer[len(transitionBuffer)-20:]
+	}
+}
+
+func flushTransitions() []TransitionEvent {
+	transitionMu.Lock()
+	defer transitionMu.Unlock()
+	events := transitionBuffer
+	transitionBuffer = nil
+	return events
+}
+
 func doPoll() {
 	for _, svc := range appConfig.Services {
 		status, duration := monitor.CheckService(svc.URL, svc.SkipTLS)
@@ -371,6 +496,19 @@ func doPoll() {
 			Timestamp:    time.Now(),
 		}
 		historyCache.Add(state)
+
+		// Notify on state transition
+		if telegramNotifier != nil {
+			stateMu.Lock()
+			prev, exists := prevServiceStates[svc.Name]
+			prevServiceStates[svc.Name] = status
+			stateMu.Unlock()
+
+			if exists && prev != status {
+				telegramNotifier.NotifyServiceChange(svc.Name, svc.URL, prev, status)
+				recordTransition(svc.Name, "service", prev, status)
+			}
+		}
 	}
 }
 
@@ -385,10 +523,24 @@ func indexHandler(w http.ResponseWriter, _ *http.Request) {
 		bgSrc = "/background"
 	}
 
+	// Determine logo source
+	LogoSrc := ""
+	logoHasFile := false
+	if appConfig.Appearance.Logo != "" {
+		if strings.HasPrefix(appConfig.Appearance.Logo, "http://") || strings.HasPrefix(appConfig.Appearance.Logo, "https://") {
+			LogoSrc = appConfig.Appearance.Logo
+		} else {
+			LogoSrc = "/logo"
+			logoHasFile = true
+		}
+	}
+
 	data := struct {
 		BackgroundSrc     string
 		BackgroundOpacity float64
 		BackgroundBlur    int
+		LogoSrc           string
+		LogoHasFile       bool
 		CardOpacity       float64
 		CardBlur          int
 		AccentColor       string
@@ -397,6 +549,8 @@ func indexHandler(w http.ResponseWriter, _ *http.Request) {
 		BackgroundSrc:     bgSrc,
 		BackgroundOpacity: appConfig.Appearance.BackgroundOpacity,
 		BackgroundBlur:    appConfig.Appearance.BackgroundBlur,
+		LogoSrc:           LogoSrc,
+		LogoHasFile:       logoHasFile,
 		CardOpacity:       appConfig.Appearance.CardOpacity,
 		CardBlur:          appConfig.Appearance.CardBlur,
 		AccentColor:       appConfig.Appearance.AccentColor,
@@ -566,6 +720,7 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 		TodoTitle:      appConfig.Todos.Title,
 		MediaServices:  medias,
 		BookmarkGroups: bookmarkGroups,
+		Transitions:    flushTransitions(),
 	}
 
 	if err := tmpl.Execute(w, data); err != nil {
@@ -709,6 +864,52 @@ func todoItemHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func notificationsTestHandler(w http.ResponseWriter, r *http.Request) {
+	if telegramNotifier == nil {
+		http.Error(w, "Telegram notifier not initialized", http.StatusNotFound)
+		return
+	}
+	if err := telegramNotifier.NotifyTest(); err != nil {
+		log.Printf("Test notification error: %v", err)
+		http.Error(w, fmt.Sprintf("Failed to send test notification: %v", err), http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	fmt.Fprintf(w, `{"status":"ok","message":"Test notification sent"}`)
+}
+
+func logoServeHandler(w http.ResponseWriter, r *http.Request) {
+	logoPath := appConfig.Appearance.Logo
+	if logoPath == "" {
+		http.NotFound(w, r)
+		return
+	}
+
+	clean := filepath.Clean(logoPath)
+	if strings.Contains(clean, "..") || filepath.IsAbs(clean) && !strings.HasPrefix(clean, "/app/") {
+		log.Printf("[SECURITY] Blocked path traversal attempt: %s", logoPath)
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	data, err := os.ReadFile(clean)
+	if err != nil {
+		log.Printf("Logo image error: %v", err)
+		http.NotFound(w, r)
+		return
+	}
+
+	ext := filepath.Ext(clean)
+	contentType := mime.TypeByExtension(ext)
+	if contentType == "" {
+		contentType = "image/png"
+	}
+
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("Cache-Control", "public, max-age=3600")
+	w.Write(data)
 }
 
 // mergeExtraDisks appends configured extra disks to the Proxmox disk list.

@@ -559,38 +559,38 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 ## Phase 10: UI Refinements & Theme Toggle
 
 ### Step 10.1 — Favicon & Header Logo
-- [ ] Add a built-in SVG favicon to `static/` (or `data/icons/`)
-- [ ] Update `static/index.html` to add `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`
-- [ ] Optionally add config option `appearance.favicon` to allow custom favicon path/URL
-- [ ] Add a small logo next to the "dhiarhome" text in the page header (optional)
+- [x] Add a built-in SVG favicon to `static/` (or `data/icons/`)
+- [x] Update `static/index.html` to add `<link rel="icon" href="/favicon.svg" type="image/svg+xml">`
+- [x] Optionally add config option `appearance.favicon` to allow custom favicon path/URL
+- [x] Add a small logo next to the "dhiarhome" text in the page header (optional)
 
 ### Step 10.2 — Bigger Widget Text & Readability
-- [ ] Increase font sizes across `templates/status.html`:
+- [x] Increase font sizes across `templates/status.html`:
   - CPU & Memory: title, percentage, GB values
   - Virtualization: VM/LXC counts
   - Disk Usage: mountpoint, percentage, used/total
   - Services, Docker, Media Services: names, stats, labels
-- [ ] Adjust card padding and spacing to accommodate bigger text
-- [ ] Test responsiveness — ensure no overflow on mobile
+- [x] Adjust card padding and spacing to accommodate bigger text
+- [x] Test responsiveness — ensure no overflow on mobile
 
 ### Step 10.3 — Dark/Light Theme Toggle
-- [ ] Add CSS variables for a light theme alongside existing dark theme
-- [ ] Add a toggle button (sun/moon icon) in the page header
-- [ ] Persist theme choice in `localStorage` (client-side)
-- [ ] Default to `appearance.theme` from config, allow user override via toggle
-- [ ] Ensure all glassmorphism effects look good in both themes
+- [x] Add CSS variables for a light theme alongside existing dark theme
+- [x] Add a toggle button (sun/moon icon) in the page header
+- [x] Persist theme choice in `localStorage` (client-side)
+- [x] Default to `appearance.theme` from config, allow user override via toggle
+- [x] Ensure all glassmorphism effects look good in both themes
 
 ### Step 10.4 — Update Documentation
-- [ ] Update `documentation/docs.md` with UI changes and theme toggle
-- [ ] Update `config-example.yaml` with favicon config (if added)
-- [ ] Update `documentation/to-do.md` — Phase 10 marked complete
+- [x] Update `documentation/docs.md` with UI changes and theme toggle
+- [x] Update `config-example.yaml` with logo config
+- [x] Update `documentation/to-do.md` — Phase 10 marked complete
 
 ---
 
 ## Phase 11: Telegram Notifications (Service & Container Alerts)
 
 ### Step 11.1 — Add Notifications Config
-- [ ] Add `Notifications` section to `internal/config/config.go`:
+- [x] Add `Notifications` section to `internal/config/config.go`:
   ```go
   type NotificationsConfig struct {
       Telegram TelegramConfig `yaml:"telegram"`
@@ -607,24 +607,24 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
   ```
 
 ### Step 11.2 — Implement Telegram Notifier
-- [ ] Create `internal/notifications/telegram.go`:
+- [x] Create `internal/notifications/telegram.go`:
   - `SendMessage(botToken, chatID, message string)` — HTTP POST to `https://api.telegram.org/bot{token}/sendMessage`
   - Support `parse_mode: HTML` for formatted messages (bold service name, status emoji)
   - Format message with: service name, status (up/down), response time, timestamp
-- [ ] Integrate into `doPoll()` in `main.go`:
+- [x] Integrate into `doPoll()` in `main.go`:
   - Track previous service states in a `map[string]string` (name → last known status)
   - When a service transitions **Online → Offline**, send a down alert (if `notify_down`)
   - When a service transitions **Offline → Online**, send a recovery alert (if `notify_up`)
   - Rate-limit: respect `cooldown` — don't resend within N minutes for the same service
   - Optional: suppress notifications during `silent_hours`
-- [ ] Also monitor Docker container state transitions (running → exited, exited → running)
-- [ ] Mock/dry-run mode for testing without real Telegram tokens (log messages to stdout)
-- [ ] Add a `/api/notifications/test` endpoint to send a test message manually
+- [x] Also monitor Docker container state transitions (running → exited, exited → running)
+- [x] Mock/dry-run mode for testing without real Telegram tokens (log messages to stdout)
+- [x] Add a `/api/notifications/test` endpoint to send a test message manually
 
 ### Step 11.3 — Update Documentation
-- [ ] Update `documentation/docs.md` with Telegram notification config reference
-- [ ] Update `config-example.yaml` with Telegram section (commented out)
-- [ ] Update `documentation/to-do.md` — Phase 11 marked complete
+- [x] Update `documentation/docs.md` with Telegram notification config reference
+- [x] Update `config-example.yaml` with Telegram section (commented out)
+- [x] Update `documentation/to-do.md` — Phase 11 marked complete
 
 ---
 
@@ -744,11 +744,13 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 7. Proxmox API Enrichment | 3 | 3 | 0 | Complete |
 | 8. Disk Monitoring | 3 | 3 | 0 | Complete |
 | 9. Remote Docker & Portainer | 2 | 2 | 0 | Complete |
-| 10. UI & Theme Toggle | 4 | 0 | 4 | **Pending** |
-| 11. Telegram Notifications | 3 | 0 | 3 | **Pending** |
+| 10. UI & Theme Toggle | 4 | 4 | 0 | **Complete** |
+| 11. Telegram Notifications | 3 | 3 | 0 | **Complete** |
 | 12. Historical Graphs | 3 | 0 | 3 | **Pending** |
-| **Total** | **58** | **37** | **21** |
+| **Total** | **58** | **44** | **14** |
 
+> **v1.4.0:** Phase 11 complete — Telegram notifications for service and Docker container state transitions with cooldown, silent hours, mock mode, and test endpoint.
+> **v1.3.2:** Phase 10 complete — inline SVG favicon, configurable logo (file/URL), header logo, bigger widget text across all templates, dark/light theme toggle with localStorage persistence.
 > **v1.3.1:** UI refinements — full-screen todo modal with date tracking, CPU/Memory widget vertical stretch and divider.
 > **v1.3.0:** Phase 9 complete — remote Docker TLS + Portainer API integration.
 > **v1.2.0:** Phase 8 complete — extra disk monitoring with auto-detect (statfs) and manual override modes.

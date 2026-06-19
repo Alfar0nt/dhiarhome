@@ -4,6 +4,173 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.4.2] - 2026-06-19 - Security Hardening
+
+### Changed
+- **Binaries stripped** — `dashboard` and `dhiarhome` binaries stripped of debug symbols (14MB → 9.6MB each, ~32% size reduction, removes function names and source paths from binary)
+- **config.yaml permissions restricted** — set to `0600` (owner-only read/write, though limited by NTFS filesystem)
+
+### Security Audit Summary
+Full codebase audit completed. 14 findings identified; all remaining medium/low issues are theoretical for local homelab use (behind firewall, no public exposure). Key mitigations already in place:
+- Config secrets only in gitignored `config.yaml`
+- No hardcoded credentials in source code
+- Input validation on all user-facing endpoints
+- Path traversal protection on file-serving handlers
+- Rate limiting on API endpoints
+
+### Files Modified
+- `dashboard` — Stripped binary
+- `dhiarhome` — Stripped binary
+- `config.yaml` — Permissions restricted
+
+---
+
+## [1.4.1] - 2026-06-19 - UI Toast Notifications & Telegram URL Enhancement
+
+### Added
+- **Toast notifications** — Real-time popup alerts in top-right corner for service/Docker state transitions:
+  - Green/red toasts with name, type (service/container), old→new state, timestamp
+  - Auto-dismiss after 4 seconds
+  - Driven by `TransitionEvent` buffer in `main.go` with `recordTransition()` and `flushTransitions()`
+  - Alpine.js `x-init` reads embedded JSON from template data
+- **Service URL in Telegram alerts** — `NotifyServiceChange()` now accepts and displays the service URL in notification messages
+
+### Changed
+- `NotifyServiceChange(name, url, oldStatus, newStatus)` — added URL parameter for richer Telegram messages
+- `doPoll()` passes `svc.URL` to `NotifyServiceChange()`
+
+### Files Modified
+- `internal/notifications/telegram.go` — URL parameter in `NotifyServiceChange()`, message format
+- `main.go` — TransitionEvent struct, transition buffer, `recordTransition()`/`flushTransitions()`, `json` template function, toast data in statusHandler
+- `templates/status.html` — Alpine.js toast container with auto-dismiss
+
+---
+
+## [1.4.0] - 2026-06-19 - Phase 11: Telegram Notifications
+
+### Added
+- **Telegram Bot Notifications** — `internal/notifications/telegram.go`:
+  - `Notifier` struct with `SendMessage()` via Telegram Bot API `sendMessage` endpoint
+  - HTML-formatted messages with status emoji, service/container name, state transition, and timestamp
+  - Configurable cooldown (default: 5 minutes) to prevent alert fatigue
+  - Silent hours support (suppress alerts during specified hours, e.g., nighttime)
+  - Mock/dry-run mode: logs to stdout instead of sending to Telegram
+- **Service state transition detection** — `doPoll()` in `main.go`:
+  - Tracks previous service states in `prevServiceStates` map
+  - Sends notifications on Online↔Offline transitions respecting NotifyUp/NotifyDown settings
+- **Docker container state monitoring** — New `pollContainers()` goroutine:
+  - Periodically fetches Docker containers and detects running↔exited transitions
+  - Background polling every 15 seconds
+- **Test endpoint** — `GET /api/notifications/test` sends a test message to verify Telegram configuration
+- **Notifications config** — New `notifications` section in `internal/config/config.go`:
+  ```go
+  type NotificationsConfig struct {
+      Telegram TelegramConfig
+  }
+  type TelegramConfig struct {
+      Enabled, NotifyUp, NotifyDown, Mock bool
+      BotToken, ChatID string
+      Cooldown int
+      SilentHours []int
+  }
+  ```
+- **config-example.yaml** — Added `notifications.telegram` section with all options documented
+
+### Files Added
+- `internal/notifications/telegram.go` — Telegram notifier package
+
+### Files Modified
+- `internal/config/config.go` — NotificationsConfig, TelegramConfig structs, defaults, validation
+- `main.go` — Notifier initialization, `pollContainers()`, `notificationsTestHandler()`, service state tracking, Docker container state monitoring
+
+---
+
+## [1.3.2] - 2026-06-19 - Phase 10: UI Refinements (Logo, Theme Toggle, Bigger Text)
+
+### Added
+- **Configurable logo** — `appearance.logo` option supports local file paths (e.g. `static/logo.png`) or remote URLs; used as both browser favicon (tab icon) and header logo image; falls back to inline SVG when empty
+- **`/logo` HTTP endpoint** — serves local logo file with proper MIME type and 1h cache (same pattern as `/background`)
+- **`Logo` field** in `AppearanceConfig` (`internal/config/config.go`)
+- **Dark/Light theme toggle** — Sun/moon icon button in page header:
+  - Toggles between dark and light themes
+  - Persisted to `localStorage` (`dhiarhome-theme`)
+  - Defaults to `appearance.theme` config value
+  - Light theme overrides CSS variables for card backgrounds, text colors, borders, and accent colors
+  - Progress bars, status glows, and skeleton loaders adapt to light background
+- **Inline SVG favicon** — Dashboard icon embedded as data URI in `<link rel="icon">`, zero-dependency favicon that works in all browsers
+- **Header logo icon** — Server SVG icon displayed next to "dhiarhome" title for visual branding
+
+### Changed
+- **Light mode readability improvements**:
+  - Body background darkened from `#f1f5f9` to `#e2e8f0` for less eye strain
+  - `text-white` and `text-gray-300` globally overridden to dark text (`#1e293b`, `#334155`) for proper contrast on light cards
+  - Status colors use darker tones in light mode (e.g. `text-green-400` → `#16a34a`, `text-blue-400` → `#2563eb`)
+  - `bg-white/*` and `border-white/*` classes overridden to dark-on-light equivalents (`rgba(0,0,0,0.04-0.12)`)
+  - Scrollbar colors adapted for light background
+- **Background overlay in light mode** — Changed from bright `rgba(226, 232, 240, 0.6)` to subtle dark `rgba(15, 23, 42, 0.15)` so background images remain visible through the overlay
+- **Todo modal light mode support**:
+  - Added `todo-overlay` CSS class to modal overlay div
+  - In light mode, overlay switches from `bg-gray-900/95` to `rgba(226, 232, 240, 0.95)`
+  - Modal input backgrounds (`bg-white/10`), borders (`border-white/20`), and item backgrounds (`bg-white/[0.03]`) overridden to dark-on-light
+  - Modal button text (`text-amber-300`) changed to dark amber `#b45309` for readability
+  - Modal close button hover states adapted for light background
+- **Global CSS `metric-label` class** — `font-size` increased from `0.6875rem` to `0.75rem` for better label readability
+- **Proxmox section** (templates/status.html):
+  - Section title: `text-xl` → `text-2xl`, icon `w-6` → `w-7`
+  - CPU label: `text-[11px]` → `text-xs`
+  - CPU value: `text-sm` → `text-base`
+  - Load label/values: `text-[11px]`/`text-[10px]` → `text-xs`
+  - Memory/Swap label: `text-[11px]` → `text-xs`
+  - Memory/Swap value: `text-sm` → `text-base`
+  - Memory/Swap GB text: `text-[10px]` → `text-xs`
+  - VM/LXC count label: `text-[10px]` → `text-xs`
+  - VM/LXC name: `text-[10px]` → `text-xs`
+  - Disk mountpoint/percent: `text-[11px]`/`text-[10px]` → `text-xs`
+  - Disk GB text: `text-[10px]` → `text-xs`
+  - PVE/Kernel labels: `text-[11px]` → `text-xs`
+- **Services section** (templates/status.html):
+  - Section title: `text-lg` → `text-xl`, icon `w-5` → `w-6`
+  - Service name: `text-sm` → `text-base`, `font-medium` → `font-semibold`
+  - Response time: `text-[10px]` → `text-xs`
+  - Status badge: `text-[10px]` → `text-xs`
+- **Docker section** (templates/status.html):
+  - Section title: `text-xl` → `text-2xl`, icon `w-6` → `w-7`
+  - Container name: `text-sm` → `text-base`, `font-medium` → `font-semibold`
+  - Status badge: `text-[10px]` → `text-xs`
+  - Status text: `text-xs` → `text-sm`
+- **Bookmarks** (templates/bookmarks.html): Link name `text-[11px]` → `text-xs`
+- **Media Services** (templates/mediaservices.html):
+  - Section title: `text-xl` → `text-2xl`, icon `w-6` → `w-7`
+  - Service name: `text-sm` → `text-base`
+  - WebUI URL: `text-[10px]` → `text-xs`
+  - Stat values: `text-sm` → `text-base`
+  - Stat labels: `text-[10px]` → `text-xs`
+- **Widgets** (templates/widgets/widgets.html):
+  - Standalone weather/datetime labels: `text-[10px]` → `text-xs`
+  - Weather condition, wind: `text-[11px]`/`text-[10px]` → `text-xs`
+  - Datetime date, timezone: `text-[11px]`/`text-[10px]` → `text-xs`
+
+### Fixed
+- **Todo modal disappearing in light mode** — Root cause: modal overlay stayed `bg-gray-900/95` (dark) while `.light-theme .text-white` made text dark (dark-on-dark). Fixed by adding `.todo-overlay` class and light-mode CSS override to switch overlay to light background.
+- **Todo Add button text invisible in light mode** — `text-amber-300` (light amber) had no contrast on light overlay. Overridden to dark amber `#b45309` in light mode.
+- **Missing `</header>` closing tag** — The `<header>` element was not properly closed after the theme toggle was added, causing `justify-between` to push all dashboard content to the right.
+
+### Files Modified
+- `internal/config/config.go` — Added `Logo` field to `AppearanceConfig`
+- `main.go` — Added `logoServeHandler()`, logo URI in `indexHandler()`, `/logo` route
+- `static/index.html` — Configurable favicon/logo, dark/light theme toggle with localStorage, light theme CSS variables and text overrides, background overlay fix, todo modal light mode overrides
+- `templates/todo.html` — Added `todo-overlay` class to modal overlay div
+- `templates/status.html` — Font size increases across Proxmox, Services, Docker sections
+- `templates/mediaservices.html` — Font size increases across media service cards
+- `templates/bookmarks.html` — Bookmark link name font size increase
+- `templates/widgets/widgets.html` — Widget text size increases
+- `config-example.yaml` — Added `logo` config under appearance section, updated `theme` comment with toggle info
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 10 marked complete
+- `documentation/docs.md` — Updated with logo, theme toggle, and UI changes
+
+---
+
 ## [1.3.1] - 2026-06-19 - UI Refinements: Todo Modal, CPU/Memory Widget & Date Tracking
 
 ### Added

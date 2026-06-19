@@ -23,6 +23,7 @@ type Config struct {
 	Todos         TodoConfig           `yaml:"todos"`
 	MediaServices []MediaServiceConfig `yaml:"media_services"`
 	Bookmarks     []BookmarkGroup      `yaml:"bookmarks"`
+	Notifications NotificationsConfig  `yaml:"notifications"`
 }
 
 type MediaServiceConfig struct {
@@ -37,6 +38,7 @@ type AppearanceConfig struct {
 	BackgroundURL     string  `yaml:"background_url"`
 	BackgroundOpacity float64 `yaml:"background_opacity"`
 	BackgroundBlur    int     `yaml:"background_blur"`
+	Logo              string  `yaml:"logo"`
 	Theme             string  `yaml:"theme"`
 	CardOpacity       float64 `yaml:"card_opacity"`
 	CardBlur          int     `yaml:"card_blur"`
@@ -145,6 +147,22 @@ type BookmarkLink struct {
 	NewTab      bool   `yaml:"new_tab"` // Open in new tab (default true)
 }
 
+type NotificationsConfig struct {
+	Telegram TelegramConfig `yaml:"telegram"`
+}
+
+type TelegramConfig struct {
+	Enabled         bool   `yaml:"enabled"`
+	BotToken        string `yaml:"bot_token"`
+	ChatID          string `yaml:"chat_id"`
+	MessageThreadID int    `yaml:"message_thread_id"` // optional: topic/thread ID for forum groups
+	NotifyUp        bool   `yaml:"notify_up"`
+	NotifyDown      bool   `yaml:"notify_down"`
+	Cooldown        int    `yaml:"cooldown"`    // minutes between repeat alerts (default: 5)
+	SilentHours     []int  `yaml:"silent_hours"` // optional: hours to suppress (e.g., [23,0,1])
+	Mock            bool   `yaml:"mock"`        // dry-run: log to stdout instead of sending
+}
+
 // parseSizeRegex matches a number (with optional decimal) followed by a unit suffix.
 var parseSizeRegex = regexp.MustCompile(`(?i)^\s*([\d.]+)\s*(B|KB|MB|GB|TB|KIB|MIB|GIB|TIB)?\s*$`)
 
@@ -236,6 +254,15 @@ func (c *Config) setDefaults() {
 	}
 	if c.Todos.Title == "" {
 		c.Todos.Title = "To-Do"
+	}
+	// Telegram defaults
+	if c.Notifications.Telegram.Cooldown == 0 {
+		c.Notifications.Telegram.Cooldown = 5
+	}
+	if c.Notifications.Telegram.Enabled {
+		if c.Notifications.Telegram.SilentHours == nil {
+			c.Notifications.Telegram.SilentHours = []int{}
+		}
 	}
 }
 
@@ -364,6 +391,21 @@ func (c *Config) validate() {
 		}
 	}
 
+	// Telegram validation
+	if c.Notifications.Telegram.Enabled && !c.Notifications.Telegram.Mock {
+		if c.Notifications.Telegram.BotToken == "" {
+			log.Println("[WARN] notifications.telegram.enabled but bot_token is empty, disabling")
+			c.Notifications.Telegram.Enabled = false
+		}
+		if c.Notifications.Telegram.ChatID == "" {
+			log.Println("[WARN] notifications.telegram.enabled but chat_id is empty, disabling")
+			c.Notifications.Telegram.Enabled = false
+		}
+		if c.Notifications.Telegram.Cooldown < 1 {
+			c.Notifications.Telegram.Cooldown = 1
+		}
+	}
+
 	// Print feature summary
 	features := []string{}
 	if !c.Proxmox.Mock && c.Proxmox.URL != "" {
@@ -401,6 +443,13 @@ func (c *Config) validate() {
 	}
 	if len(c.Proxmox.ExtraDisks) > 0 {
 		features = append(features, fmt.Sprintf("ExtraDisks (%d)", len(c.Proxmox.ExtraDisks)))
+	}
+	if c.Notifications.Telegram.Enabled {
+		if c.Notifications.Telegram.Mock {
+			features = append(features, "Telegram (mock)")
+		} else {
+			features = append(features, "Telegram")
+		}
 	}
 	if len(features) > 0 {
 		log.Printf("Active features: %s", strings.Join(features, ", "))

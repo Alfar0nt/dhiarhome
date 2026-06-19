@@ -1604,3 +1604,266 @@ fix the date finished disappearing on page refresh
 - `documentation/docs.md` — Todo modal and UI refinements
 - `documentation/to-do.md` — v1.3.1 version note
 - `documentation/prompt-history.md` — This session
+
+---
+
+## Session 32: Phase 10 Implementation — Logo Configuration, Light Mode & Theme Toggle
+
+**Date:** June 19, 2026
+
+### User Requests (cumulative)
+1. Make favicon and dashboard icon configurable via config.yaml
+2. Increase font size across all widgets/templates
+3. Add dark/light theme toggle with persistence
+4. Fix light mode readability (todo modal, backgrounds, text)
+5. Fix missing `</header>` closing tag causing layout shift
+6. Add inline SVG favicon as fallback
+
+### Implementation Summary
+
+**10.1 Logo Configuration (`appearance.logo`):**
+- Added `Logo string` to `AppearanceConfig` in `internal/config/config.go`
+- Added `logoServeHandler()` in `main.go` — serves local files as `/logo` endpoint
+- `indexHandler()` resolves `LogoSrc`: local path → `/logo`, remote URL → used directly
+- Favicon (`<link rel="icon">`) and header logo `<img>` use `LogoSrc`, fallback to inline SVG
+- Inline SVG favicon via data URI: zero-dependency default dashboard icon
+
+**10.2 Font Size Increases:**
+- `templates/status.html`: `text-[9-11px]` → `text-xs`, `text-sm` → `text-base`, section titles bumped
+- `templates/mediaservices.html`: Card text sizes increased consistently
+- `templates/bookmarks.html`: Link names bumped up
+- `templates/widgets/widgets.html`: Widget text sizes increased
+- `.metric-label` CSS class in `static/index.html`: bumped to `0.75rem`
+
+**10.3 Theme Toggle (Dark/Light):**
+- Moon/Sun toggle button in header (right side, alongside Live badge)
+- JavaScript in `static/index.html`: toggles `light-mode` class on `<html>`, persists to `localStorage` key `dhiarhome-theme`
+- Respects `config.Appearance.Theme` as default (production), always defaults to dark in dev
+- All CSS light-mode overrides in `static/index.html`:
+  - Body background: lighter `#e2e8f0`
+  - Text colors: `.text-white` → `#1e293b` (dashboard content), `.text-gray-300/400` → `#475569`/`#64748b`
+  - Glass cards: white `rgba(255,255,255,0.7)` with soft shadow
+  - Borders: `border-gray-700/40` → `gray-300/40`
+  - Progress bar backgrounds (gray parts): `gray-200`
+  - Skeleton loaders: `gray-300`
+  - Scrollbar: darker thumb for light backgrounds
+
+**10.4 Light Mode Fixes:**
+- Background overlay: darkened to `rgba(15,23,42,0.15)` so background images remain visible
+- Todo modal: Added `.todo-overlay` class to overlay `<div>` in `templates/todo.html`
+- Light-mode CSS for todo modal: overlay lightens, text/backgrounds/borders adapt
+- Add button text: `text-amber-500` → `text-amber-700` (`#b45309`) for contrast on light background
+
+**10.5 Bugfix:**
+- Missing `</header>` closing tag in `static/index.html` — root cause of layout shift where content shifted right. Verified fixed.
+
+### Files Modified
+- `internal/config/config.go` — `Logo` field on `AppearanceConfig`
+- `main.go` — `logoServeHandler()`, logo URI resolution, `/logo` route
+- `static/index.html` — Favicon/logo, header layout fix, light-theme CSS, theme toggle JS, background overlay, todo modal overrides
+- `templates/todo.html` — Added `todo-overlay` class to modal overlay
+- `templates/status.html` — Font size increases
+- `templates/mediaservices.html` — Font size increases
+- `templates/bookmarks.html` — Font size increases
+- `templates/widgets/widgets.html` — Font size increases
+- `config-example.yaml` — Added `logo` field, updated `theme` comment
+- `documentation/docs.md` — Section 8 expanded with Phase 10 details
+- `documentation/changelogs.md` — v1.3.2 entry updated with all Phase 10 changes
+- `documentation/to-do.md` — Phase 10 all steps marked complete, progress 41/58
+
+---
+
+## Session 33: Documentation Update for Phase 10
+
+**Date:** June 19, 2026
+
+### User Request
+```
+Continue if you have next steps, or stop and ask for clarification if you are unsure how to proceed.
+```
+
+### Implementation Summary
+
+All documentation files reviewed and updated to reflect Phase 10 completion:
+
+1. **`documentation/docs.md`** — Already updated in Session 32. Section 8 (UI Refinements) expanded with logo, font sizes, light mode, theme toggle.
+
+2. **`documentation/to-do.md`** — Already updated in Session 32. Phase 10 complete, progress 41/58.
+
+3. **`documentation/changelogs.md`** — Already updated in Session 32. v1.3.2 entry includes all Phase 10 changes.
+
+4. **`documentation/deployment.md`** — Reviewed: no changes needed. Phase 10 adds no new dependencies, services, or deployment steps. The `logo` config field is backward compatible.
+
+5. **`documentation/prompt-history.md`** — Sessions 32 and 33 added in this update.
+
+### Rationale for deployment.md
+- Logo config is purely optional UI customization — no impact on deployment
+- Theme toggle uses localStorage (client-side), no infra changes
+- Font size changes are template-only, no new assets
+- No new ports, services, or environment variables
+
+### Files Modified
+- `documentation/prompt-history.md` — Sessions 32–33 added
+
+---
+
+## Session 34: Phase 11 Implementation — Telegram Notifications
+
+**Date:** June 19, 2026
+
+### User Request
+```
+okay that is good. now i think we're good to go to the next phase of updating this project, which is to the phase 11 according to the to-do.md in the documentation folder. proceed now
+```
+
+### Implementation Summary
+
+**Step 11.1 — Notifications Config:**
+- Added `NotificationsConfig` with `Telegram TelegramConfig` to `Config` struct in `internal/config/config.go`
+- `TelegramConfig`: `Enabled`, `BotToken`, `ChatID`, `NotifyUp`, `NotifyDown`, `Cooldown` (default 5 min), `SilentHours` (list of 0-23), `Mock` (dry-run mode)
+- Defaults: cooldown=5, enabled=false, silent_hours=[]
+- Validation: requires bot_token and chat_id when enabled+!mock; disables with warning on invalid config
+- Feature summary: shows "Telegram" or "Telegram (mock)" when enabled
+
+**Step 11.2 — Telegram Notifier (`internal/notifications/telegram.go`):**
+- `Notifier` struct with bot token, chat ID, cooldown tracking (mutex-protected), and config
+- `SendMessage()` — HTTP POST to `https://api.telegram.org/bot{token}/sendMessage` with `parse_mode: HTML`
+- `NotifyServiceChange()` — sends formatted alert with emoji, service name, old→new status, timestamp
+- `NotifyContainerChange()` — same format for Docker container state transitions
+- `NotifyTest()` — test message to verify configuration
+- `shouldNotify()` — checks NotifyUp/NotifyDown flags, silent hours, and cooldown per key
+- Mock mode: logs `[TELEGRAM MOCK]` to stdout instead of HTTP calls
+
+**Integration into `main.go`:**
+- Initializes `telegramNotifier` when Telegram is enabled
+- `prevServiceStates map[string]string` — tracks last known service state for transition detection
+- `prevContainerStates map[string]string` — tracks last known container state
+- Modified `doPoll()` — after each service check, compares with previous state, calls `NotifyServiceChange()` on transition
+- New `pollContainers()` goroutine — polls Docker every 15s, detects running↔exited transitions
+- New `notificationsTestHandler()` — `GET /api/notifications/test` sends test message
+- Background goroutine starts only when Telegram is enabled and Docker client exists
+
+**Step 11.3 — Documentation:**
+- `documentation/docs.md`: Added Notifications (Telegram) section with config reference, updated Limitations, struck through alert notifications in Future Ideas
+- `config-example.yaml`: Added `notifications.telegram` section with all options documented
+- `documentation/to-do.md`: Phase 11 all steps marked complete, progress 44/58, v1.4.0 version note
+- `documentation/changelogs.md`: Added v1.4.0 entry with all changes
+
+### Files Created
+- `internal/notifications/telegram.go` — Telegram notifier package
+
+### Files Modified
+- `internal/config/config.go` — Notifications config structs, defaults, validation
+- `main.go` — Notifier init, doPoll() transition detection, pollContainers(), test endpoint
+- `config-example.yaml` — notifications.telegram section
+- `documentation/docs.md` — Telegram notification doc section
+- `documentation/changelogs.md` — v1.4.0 entry
+- `documentation/to-do.md` — Phase 11 marked complete, progress updated
+
+---
+
+## Session 35: Telegram Notification Testing & Fixes
+
+**Date:** June 19, 2026
+
+### User Requests (cumulative)
+1. Fix 404 on `/api/notifications/test` — `mux.HandleFunc` vs `mux.Handle` type mismatch
+2. Add `message_thread_id` support to Telegram config and sendMessage payload
+3. Test notification cycle: temporary test mode that cycles first service Online→Offline→Online
+4. Temporary 5-second cooldown override for rapid testing
+5. Revert all test changes after successful verification
+
+### Implementation Summary
+
+**Bugfix:**
+- `/api/notifications/test` returning 404 because `rateLimitMiddleware` returns `http.Handler`, not `http.HandlerFunc` — fixed by switching to `mux.Handle()`
+
+**message_thread_id:**
+- Added `MessageThreadID int` to `TelegramConfig` struct in `config.go`
+- Added `MessageThreadID` field to `Notifier` struct in `telegram.go`
+- `SendMessage()` conditionally appends `,"message_thread_id":N` to JSON body when > 0
+- Updated `config.yaml` with real Telegram bot token, chat_id, and message_thread_id
+
+**Test cycle (temporary — reverted):**
+- Added `telegramTestUp bool` variable to toggle first service state each poll
+- `doPoll()` overrode first service's state when `telegramNotifier != nil`, cycling Online/Offline
+- `telegramNotifier.Cooldown` overridden to `5 * time.Second` for rapid testing
+- All test changes removed after successful verification
+
+### Key Finding
+- Telegram notification works correctly — test message received in forum thread
+
+### Files Modified
+- `main.go` — Route fix, temporary test cycle (reverted), temp cooldown (reverted)
+- `internal/config/config.go` — MessageThreadID field
+- `internal/notifications/telegram.go` — MessageThreadID support in Notifier and SendMessage
+- `config.yaml` — Real Telegram credentials
+
+---
+
+## Session 36: Toast Notifications for State Transitions
+
+**Date:** June 19, 2026
+
+### User Request
+```
+add the notification toast in the right top corner so that i can now what services are going up or down
+```
+
+### Implementation Summary
+
+Added **toast popup notifications** to the web UI for service/Docker state transitions.
+
+**Backend (`main.go`):**
+- Added `TransitionEvent` struct with Name, Type, OldState, NewState, Timestamp
+- Added `Transitions []TransitionEvent` to `DashboardData`
+- Transition ring buffer (max 20 entries) with `recordTransition()` and `flushTransitions()`
+- `recordTransition()` called in `doPoll()` on service state change and in `checkContainerStates()` on container state change
+- `flushTransitions()` called in `statusHandler()` to drain buffer into template data
+- Added `json` template function (`FuncMap`) for marshaling transition data into template
+
+**Frontend (`templates/status.html`):**
+- Fixed toast container at top-right corner (`fixed top-4 right-4 z-50`)
+- Alpine.js `x-data` with transitions embedded via `{{ json .Transitions }}`
+- Auto-dismiss after 4 seconds with fade-out animation
+- Green toasts for recovery (Online/running), red toasts for failures (Offline/exited)
+- Shows name, type (service/container), state transition (old → new), and timestamp
+- Transitions are cleared from buffer on each status refresh (no stale toasts)
+
+**Documentation:**
+- `README.md` — Added toast notifications to features list
+- `docs.md` — Added Toast Notifications (Web UI) section
+- `prompt-history.md` — This session
+
+### Files Modified
+- `main.go` — TransitionEvent struct, buffer, record/flush functions, DashboardData field, template func, statusHandler integration
+- `templates/status.html` — Alpine.js toast container with auto-dismiss
+- `README.md` — Toast notifications feature listing
+- `documentation/docs.md` — Toast notifications documentation section
+
+---
+
+## Session 37: Service URL in Telegram Messages
+
+**Date:** June 19, 2026
+
+### User Request
+```
+add the spesific url of the site. so below the service and above the status, it will add like url:www.test.com for that site. and then udpate the documentation the changelogs, include this update in the 1.4.1
+```
+
+### Implementation Summary
+
+**Telegram message enhancement:**
+- Added `url string` parameter to `NotifyServiceChange()`
+- Message format now includes `URL: {url}` between service name and status transition
+- Updated caller in `doPoll()` to pass `svc.URL`
+
+**Documentation:**
+- `changelogs.md` — v1.4.1 entry with toast notifications and URL enhancement
+- `prompt-history.md` — This session
+
+### Files Modified
+- `internal/notifications/telegram.go` — URL parameter, message format
+- `main.go` — Updated NotifyServiceChange call with svc.URL
+- `documentation/changelogs.md` — v1.4.1 entry

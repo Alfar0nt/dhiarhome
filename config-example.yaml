@@ -74,7 +74,11 @@ appearance:
   background_opacity: 0.3
   # Background blur intensity in pixels (0 - 20)
   background_blur: 5
-  # Theme: "dark" (light theme planned for future)
+  # Logo: path to local file (e.g. "static/logo.png") or full URL
+  # Used as both favicon (tab icon) and header logo image
+  # Leave empty for default inline SVG logo
+  logo: "static/logo.png"
+  # Theme: "dark" or "light" (user can override via toggle, persisted to localStorage)
   theme: "dark"
   # Card background opacity (0.0 - 1.0)
   card_opacity: 0.6
@@ -137,6 +141,27 @@ media_services:
   #   url: "http://192.168.1.100:5055"
   #   api_key: "YOUR-OVERSEERR-API-KEY"
   #   webui: "http://192.168.1.100:5055"
+
+# ─── Notifications (Telegram) ────────────────────────────────────────
+notifications:
+  telegram:
+    # Telegram bot token from @BotFather
+    bot_token: ""
+    # Target chat/group/channel ID (e.g., "-123456789" for group)
+    chat_id: ""
+    # Optional: topic/thread ID for forum supergroups (leave 0 for main chat)
+    message_thread_id: 0
+    # Notify on service/Docker recovery (Online/running)
+    notify_up: true
+    # Notify on service/Docker failure (Offline/exited)
+    notify_down: true
+    # Minutes between repeat alerts for the same service/container (default: 5)
+    cooldown: 5
+    # Suppress notifications during certain hours (server local time, 0-23)
+    # Example: silent_hours: [23, 0, 1] to silence from 23:00 to 01:59
+    silent_hours: []
+    # Dry-run mode: log notifications to stdout instead of sending to Telegram
+    mock: false
 
 # ─── To-Do List Widget ──────────────────────────────────────────────
 todos:

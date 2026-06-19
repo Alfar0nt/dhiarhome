@@ -20,6 +20,7 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **Weather + time** — combined card with live clock, Open-Meteo weather
 - **System info** — hostname, OS, uptime, Go runtime stats
 - **Glassmorphism UI** — transparent cards, custom backgrounds, live indicator
+- **Telegram alerts** — service/Docker state transitions with cooldown, silent hours
 - **Auto-refreshing** — HTMX polling with DOM diff (no flicker)
 - **Mock mode** — test without real credentials
 - **Single binary** — ~15MB, zero database
@@ -37,9 +38,11 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **To-do list** — Alpine.js interactive, persisted to JSON
 - **Weather + time** — live clock, Open-Meteo forecast, timezone support
 - **System info** — hostname, OS, uptime, Go memory
-- **Glassmorphism UI** — blur cards, custom backgrounds, accent color
+- **Glassmorphism UI** — blur cards, custom backgrounds, accent color, dark/light toggle
 - **DOM diff swap** — no backdrop flicker on refresh
 - **5s auto-refresh** — HTMX polling with merge-swap
+- **Toast notifications** — real-time popup alerts on service/Docker state changes
+- **Telegram notifications** — service/Docker up/down alerts with cooldown & silent hours
 - **Responsive** — 2-col mobile, 4-col desktop widget grid
 - **YAML config** — no code changes needed
 - **Mock mode** — test everything without real servers
@@ -169,6 +172,7 @@ dhiarhome/
 │   ├── mediaservices/         # Sonarr/Radarr/Overseerr clients
 │   ├── monitor/               # HTTP health checker
 │   ├── network/               # /proc/net/dev monitor
+│   ├── notifications/         # Telegram notifier
 │   ├── proxmox/               # Proxmox API client
 │   ├── todo/                  # Persistent to-do store
 │   └── widgets/               # Weather, datetime, sysinfo, custom_text
@@ -223,10 +227,11 @@ Home servers often have limited resources. Many existing dashboards are heavy an
 - ✅ Interactive to-do list (Alpine.js)
 - ✅ Media services (Sonarr, Radarr, Overseerr)
 - ✅ Custom bookmarks and web links
+- ✅ Telegram notifications (service/Docker alerts with cooldown & silent hours)
 - ⬜ Additional service integrations (Plex, Portainer)
 - ⬜ Generic HTTP API widget
 
-> **v1.0.0 released** — all planned core features complete. Future work will focus on additional integrations.
+> **v1.4.0 released** — all planned core features complete. Future work will focus on additional integrations.
 
 ---
 

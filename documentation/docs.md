@@ -77,6 +77,17 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **Mock Mode** — Simulates network traffic for UI testing without real interfaces
 - **Compact Summary Card** — Displayed in top widget row with per-interface status and live speeds
 
+### 8. UI Refinements
+- **Inline SVG favicon** — Dashboard icon embedded as data URI in `<link rel="icon">`, works in all browsers with no external files
+- **Header logo** — Server/cluster SVG icon next to the "dhiarhome" title for visual branding
+- **Configurable logo** — `appearance.logo` supports local file path (e.g. `static/logo.png`) or remote URL; used as both favicon and header logo; falls back to inline SVG when empty
+- **Dark/Light theme toggle** — Sun/moon button in page header toggles between themes; persisted to `localStorage`; defaults to `appearance.theme` from config; overrides CSS variables for card backgrounds (`#e2e8f0` body), text colors (dark text on light cards), accent colors, and scrollbars
+- **Light mode readability** — Text colors properly contrasted for light backgrounds (`text-white` → dark `#1e293b`, status colors use darker tones); all `bg-white/*` and `border-white/*` classes overridden to dark-on-light equivalents; skeleton loaders use gray tones
+- **Light mode background overlay** — Uses `rgba(15, 23, 42, 0.15)` instead of bright gray so background images remain visible
+- **Todo modal light mode** — Overlay switches from `bg-gray-900/95` to light `rgba(226, 232, 240, 0.95)`; modal content backgrounds, borders, text, and buttons adapt to light theme
+- **Bigger widget text** — All primary metric values increased from `text-sm` to `text-base`, section titles from `text-lg`/`text-xl` to `text-xl`/`text-2xl`, labels from `text-[10px]`/`text-[11px]` to `text-xs`
+- **Metric label CSS** — `.metric-label` font-size increased from `0.6875rem` to `0.75rem`
+
 ---
 
 ## Technology Stack
@@ -373,7 +384,8 @@ appearance:
   background_url: "https://..."           # Remote URL (overrides background_image)
   background_opacity: 0.4                 # Dark overlay opacity (0.0 - 1.0, default: 0.3)
   background_blur: 3                      # Background blur in px (0 - 20, default: 5)
-  theme: "dark"                           # Theme (default: "dark")
+  logo: "static/logo.png"                 # Logo path or URL (favicon + header); empty = default SVG
+  theme: "dark"                           # Theme: "dark" or "light" (user can toggle, persisted)
   card_opacity: 0.6                       # Card background opacity (0.0 - 1.0, default: 0.6)
   card_blur: 12                           # Card backdrop blur in px (0 - 30, default: 12)
   accent_color: "#3b82f6"                 # Accent color hex (default: "#3b82f6")
@@ -481,9 +493,34 @@ bookmarks:
 
 > **Note:** Groups are flattened in the UI — all links appear in a single section. Internal scrolling activates when there are more than ~10 links. Icons support three modes: Lucide icon name (e.g., `"server"`, `"globe"`, `"tv"`), custom image path, or `"favicon"` to auto-fetch from the URL's favicon.ico.
 
----
+### Notifications (Telegram)
+```yaml
+notifications:
+  telegram:
+    enabled: false                # Enable Telegram alerts
+    bot_token: "YOUR_BOT_TOKEN"   # Telegram bot token from @BotFather
+    chat_id: "YOUR_CHAT_ID"       # Telegram chat/group/channel ID
+    notify_up: true               # Notify when service/Docker recovers
+    notify_down: true             # Notify when service/Docker goes down
+    cooldown: 5                   # Minutes between repeat alerts for the same service
+    silent_hours: []              # Optional: suppress during certain hours (e.g., [23,0,1])
+    mock: false                   # Dry-run: log to stdout instead of sending (for testing)
+```
 
-## Security Considerations
+> **Note:** The notifier tracks state transitions for both monitored services (HTTP checks) and Docker containers (running ↔ exited). Cooldown prevents alert fatigue by suppressing repeat notifications within the configured window. Silent hours are specified as a list of hours (0-23) in server local time.
+
+### Toast Notifications (Web UI)
+
+State transitions also appear as **toast popups** in the top-right corner of the dashboard:
+- **Green toast** — Service recovered (Online) or container started
+- **Red toast** — Service went down (Offline) or container stopped
+- Auto-dismiss after 4 seconds
+- Uses Alpine.js `x-init` with the transition data embedded in the HTMX response
+- Styled with Tailwind CSS classes matching the dashboard theme
+
+Toasts are driven by the same `TransitionEvent` buffer that powers Telegram notifications. No additional configuration needed.
+
+---
 
 1. **Proxmox API Token**
    - Create a read-only API token with minimal privileges
@@ -522,7 +559,7 @@ bookmarks:
 1. **Single Node** - Monitors only one Proxmox node per instance
 2. **No Historical Data** - No persistent storage or graphs
 3. **No Authentication** - Dashboard is publicly accessible
-4. **No Alerts** - No email/webhook notifications
+4. **Telegram Only** - Notifications are limited to Telegram (no email, Discord, webhook)
 5. **HTTP Only** - Service checks limited to HTTP/HTTPS
 6. **No HTTPS** - Dashboard itself doesn't support TLS (use reverse proxy)
 
@@ -541,7 +578,7 @@ See [to-do.md](to-do.md) for the full phased implementation plan (58 steps). Key
 - Service integration framework (Plex, Portainer, generic API widget)
 - Multi-node Proxmox support
 - Historical metrics with SQLite/InfluxDB
-- Alert notifications (email, Discord, Telegram)
+- ~~Alert notifications (Telegram)~~
 - HTTPS support with Let's Encrypt
 - User authentication
 
