@@ -2,7 +2,9 @@
 
 A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, web services, media services (Sonarr/Radarr/Overseerr), and network interfaces. Built with Go, HTMX, Alpine.js, and Tailwind CSS.
 
-![Dashboard Screenshot](Screenshot.png)
+| Dark Mode | Light Mode |
+|-----------|-----------|
+| ![Dark Mode](screenshots/dark.png) | ![Light Mode](screenshots/light.png) |
 
 ---
 
