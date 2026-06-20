@@ -152,15 +152,17 @@ type NotificationsConfig struct {
 }
 
 type TelegramConfig struct {
-	Enabled         bool   `yaml:"enabled"`
-	BotToken        string `yaml:"bot_token"`
-	ChatID          string `yaml:"chat_id"`
-	MessageThreadID int    `yaml:"message_thread_id"` // optional: topic/thread ID for forum groups
-	NotifyUp        bool   `yaml:"notify_up"`
-	NotifyDown      bool   `yaml:"notify_down"`
-	Cooldown        int    `yaml:"cooldown"`    // minutes between repeat alerts (default: 5)
-	SilentHours     []int  `yaml:"silent_hours"` // optional: hours to suppress (e.g., [23,0,1])
-	Mock            bool   `yaml:"mock"`        // dry-run: log to stdout instead of sending
+	Enabled            bool   `yaml:"enabled"`
+	BotToken           string `yaml:"bot_token"`
+	ChatID             string `yaml:"chat_id"`
+	MessageThreadID    int    `yaml:"message_thread_id"` // optional: topic/thread ID for forum groups
+	NotifyUp           bool   `yaml:"notify_up"`
+	NotifyDown         bool   `yaml:"notify_down"`
+	NotifyTodoAdd      bool   `yaml:"notify_todo_add"`
+	NotifyTodoComplete bool   `yaml:"notify_todo_complete"`
+	Cooldown           int    `yaml:"cooldown"`    // minutes between repeat alerts (default: 5)
+	SilentHours        []int  `yaml:"silent_hours"` // optional: hours to suppress (e.g., [23,0,1])
+	Mock               bool   `yaml:"mock"`        // dry-run: log to stdout instead of sending
 }
 
 // parseSizeRegex matches a number (with optional decimal) followed by a unit suffix.

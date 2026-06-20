@@ -6,6 +6,8 @@
     ]{{ else }}[]{{ end }},
     newText: '',
     showModal: false,
+    editingId: null,
+    editText: '',
     MAX_TODOS: 15,
     get doneCount() {
         return this.todos.filter(function(t) { return t.done; }).length;
@@ -42,6 +44,56 @@
             self.todos = self.todos.filter(function(t) { return t.id !== tempTodo.id; });
             console.error('Failed to add todo:', e);
         });
+    },
+    editTodo(id) {
+        var self = this;
+        self.editingId = id;
+        self.todos.forEach(function(t) {
+            if (t.id === id) self.editText = t.text;
+        });
+        setTimeout(function() {
+            var el = document.getElementById('edit-input-' + id);
+            if (el) el.focus();
+        }, 100);
+    },
+    saveEdit(id) {
+        var text = this.editText.trim();
+        if (!text) { this.cancelEdit(); return; }
+        if (text.length > 500) return;
+        var self = this;
+        var originalText = '';
+        self.todos.forEach(function(t) {
+            if (t.id === id) originalText = t.text;
+        });
+        self.todos = self.todos.map(function(t) {
+            if (t.id === id) {
+                return { id: t.id, text: text, done: t.done, created_at: t.created_at, done_at: t.done_at };
+            }
+            return t;
+        });
+        self.editingId = null;
+        self.editText = '';
+        fetch('/api/todos/' + id, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        })
+        .then(function(r) {
+            if (!r.ok) throw new Error('API error');
+        })
+        .catch(function(e) {
+            self.todos = self.todos.map(function(t) {
+                if (t.id === id) {
+                    return { id: t.id, text: originalText, done: t.done, created_at: t.created_at, done_at: t.done_at };
+                }
+                return t;
+            });
+            console.error('Failed to update todo:', e);
+        });
+    },
+    cancelEdit() {
+        this.editingId = null;
+        this.editText = '';
     },
     toggleTodo(id) {
         var self = this;
@@ -144,12 +196,36 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path>
                         </svg>
                     </button>
+                    <input
+                        x-show="editingId === item.id"
+                        x-model="editText"
+                        @keydown.enter="saveEdit(item.id)"
+                        @keydown.escape="cancelEdit()"
+                        :id="'edit-input-' + item.id"
+                        type="text"
+                        class="flex-1 min-w-0 bg-white/5 border border-amber-400/50 rounded-lg px-2 py-1 text-xs text-white placeholder-gray-500 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                        maxlength="200"
+                        autocomplete="off"
+                    >
                     <span
-                        class="flex-1 text-xs truncate transition-colors"
-                        :class="item.done ? 'text-gray-500 line-through italic' : 'text-white'"
+                        x-show="editingId !== item.id"
+                        @click="editTodo(item.id)"
+                        class="flex-1 text-xs truncate transition-colors cursor-pointer"
+                        :class="item.done ? 'text-gray-500 line-through italic' : 'text-white hover:text-amber-300'"
                         x-text="item.text"
                     ></span>
                     <button
+                        x-show="editingId !== item.id"
+                        @click="editTodo(item.id)"
+                        class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-amber-400 transition-all"
+                        aria-label="Edit todo"
+                    >
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                        </svg>
+                    </button>
+                    <button
+                        x-show="editingId !== item.id"
                         @click="deleteTodo(item.id)"
                         class="flex-shrink-0 opacity-0 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
                         aria-label="Delete todo"
@@ -247,9 +323,22 @@
                             </svg>
                         </button>
                         <div class="flex-1 min-w-0">
+                            <input
+                                x-show="editingId === item.id"
+                                x-model="editText"
+                                @keydown.enter="saveEdit(item.id)"
+                                @keydown.escape="cancelEdit()"
+                                :id="'edit-input-' + item.id"
+                                type="text"
+                                class="w-full break-words bg-white/10 border border-amber-400/50 rounded-lg px-3 py-2 text-base text-white placeholder-gray-400 focus:outline-none focus:border-amber-400 focus:ring-1 focus:ring-amber-400/30"
+                                maxlength="200"
+                                autocomplete="off"
+                            >
                             <span
-                                class="text-base text-white transition-colors"
-                                :class="item.done ? 'text-gray-500 line-through italic' : 'text-white'"
+                                x-show="editingId !== item.id"
+                                @click="editTodo(item.id)"
+                                class="text-base text-white break-words transition-colors cursor-pointer"
+                                :class="item.done ? 'text-gray-500 line-through italic' : 'text-white hover:text-amber-300'"
                                 x-text="item.text"
                             ></span>
                             <div class="flex items-center gap-3 mt-1">
@@ -258,6 +347,17 @@
                             </div>
                         </div>
                         <button
+                            x-show="editingId !== item.id"
+                            @click="editTodo(item.id)"
+                            class="flex-shrink-0 text-gray-500 hover:text-amber-400 transition-all"
+                            aria-label="Edit todo"
+                        >
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                            </svg>
+                        </button>
+                        <button
+                            x-show="editingId !== item.id"
                             @click="deleteTodo(item.id)"
                             class="flex-shrink-0 opacity-60 group-hover:opacity-100 text-gray-500 hover:text-red-400 transition-all"
                             aria-label="Delete todo"

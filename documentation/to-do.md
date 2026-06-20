@@ -672,6 +672,409 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 
 ---
 
+## Phase 13: Background Polling & Instant Widget Rendering
+
+> **Problem:** `statusHandler` makes synchronous, sequential API calls on every 5-second HTMX poll:
+> 1. `pxClient.GetNodeStatus()` — Proxmox API (5s timeout)
+> 2. `dkClient.GetContainers()` — Docker API (5-10s timeout)
+> 3. `pxClient.GetVirtualization()` — Proxmox API again (5s timeout)
+> 4. `widgetRegistry.FetchAll()` → weather `Fetch()` — Open-Meteo API (5s timeout, cached 15min)
+>
+> These run **one after another** inside the HTTP request handler. On a fast local network, total latency is ~500ms-1s. But if any API is slow or times out, the entire page blocks for 5-15+ seconds. The user sees an empty/skeleton dashboard until all calls return.
+>
+> **Current state:** Services and media services already use background polling + cache. Proxmox, Docker, and virtualization do not.
+>
+> **Solution:** Move all external API calls to background goroutines. `statusHandler` reads only from in-memory cache — instant response.
+
+### Step 13.1 — Background Proxmox Poller
+- [x] Add shared state in `main.go`:
+  ```go
+  var (
+      cachedPxStatus   proxmox.NodeStatus
+      cachedVirtInfo   proxmox.VirtualizationInfo
+      pxStatusMu       sync.RWMutex
+  )
+  ```
+- [x] Create `pollProxmox()` goroutine (runs every 5 seconds, same as HTMX poll interval):
+  - Calls `pxClient.GetNodeStatus()`, `mergeExtraDisks()`, `pxClient.GetVirtualization()`
+  - Stores results under `pxStatusMu` write lock
+  - On error, keeps previous cached values (stale data > no data)
+- [x] Start goroutine at startup: `go pollProxmox()`
+- [x] `statusHandler` reads from cache under read lock — no API calls in request path
+
+### Step 13.2 — Background Docker Poller
+- [x] Add shared state:
+  ```go
+  var (
+      cachedContainers []docker.Container
+      containersMu     sync.RWMutex
+  )
+  ```
+- [x] Create `pollDocker()` goroutine (runs every 5 seconds):
+  - Calls `dkClient.GetContainers()`, applies name filter
+  - Stores filtered list under `containersMu` write lock
+  - On error, falls back to mock containers (when `proxmox.mock: true`) or keeps previous cached list
+- [x] `statusHandler` reads from cache — no Docker API call in request path
+
+### Step 13.3 — Refactor statusHandler
+- [x] Remove all direct API calls from `statusHandler`:
+  - ~~`pxClient.GetNodeStatus()`~~ → read `cachedPxStatus`
+  - ~~`pxClient.GetVirtualization()`~~ → read `cachedVirtInfo`
+  - ~~`dkClient.GetContainers()`~~ → read `cachedContainers`
+  - ~~`mergeExtraDisks()`~~ → already done in background poller
+- [x] `statusHandler` becomes pure cache reads + template render — should complete in <5ms
+- [x] Keep `widgetRegistry.FetchAll()` as-is (weather already has 15-min internal cache)
+
+### Step 13.4 — First-Load Strategy
+- [x] **Option A: Initial blocking poll** — Run one synchronous poll at startup before starting HTTP server. First HTMX request gets cached data instantly. Simple, adds ~1s to startup time.
+- [ ] **Option B: Skeleton + instant swap** — Keep current skeleton loader, background poller populates cache within 5s. First HTMX poll after that gets data. No startup delay.
+- [x] **Recommended: Option A** — Run initial `doPollProxmox()` and `doPollDocker()` synchronously at startup. User already sees the page skeleton during HTML load; by the time HTMX fires `/status`, cache is already warm.
+
+### Step 13.5 — Update Documentation
+- [x] Update `documentation/docs.md` — Architecture section, background goroutines list
+- [x] Update `documentation/changelogs.md` — New version entry
+- [x] Update `documentation/to-do.md` — Phase 13 marked complete
+
+### Performance Impact
+
+| Metric | Before | After |
+|--------|--------|-------|
+| `/status` response time | 500ms–15s (depends on APIs) | <5ms (cache read only) |
+| First widget render | 1–15s after page load | Instant (cache pre-warmed at startup) |
+| CPU usage | Same (polls at same interval) | Same (just moved to background) |
+| Memory | +minimal | +~2KB for cached structs |
+| Stale data risk | None (always fresh) | Up to 5s stale (acceptable for dashboard) |
+| API failure UX | Blank/broken page | Shows last known good data |
+
+### Files to Modify
+- `main.go` — Add `pollProxmox()`, `pollDocker()`, cached state vars, refactor `statusHandler`
+- `documentation/docs.md` — Architecture update
+- `documentation/changelogs.md` — Version entry
+
+---
+
+## Phase 14: To-Do Edit Functionality
+
+> **Problem:** Currently, once a to-do item is added, the only actions available are "mark as done" (checkbox) and "delete" (X button). There is no way to edit the text of an existing to-do item. If the user makes a typo or wants to update a task, they must delete it and re-add it — losing the created_at date and done state.
+>
+> **Solution:** Add inline editing to both the compact widget view and the full-screen modal. A pencil icon button triggers edit mode, replacing the text display with an input field. Save on Enter, cancel on Escape.
+
+### Step 14.1 — Backend: Add `Update()` Method to Todo Store
+- [x] Add `Update(id int64, newText string) bool` method to `internal/todo/store.go`:
+  ```go
+  func (s *Store) Update(id int64, newText string) bool {
+      s.mu.Lock()
+      defer s.mu.Unlock()
+      for i := range s.todos {
+          if s.todos[i].ID == id {
+              s.todos[i].Text = newText
+              s.save()
+              return true
+          }
+      }
+      return false
+  }
+  ```
+- [ ] Input validation: trim whitespace, enforce max 500 characters (same as Add)
+
+### Step 14.2 — Backend: Add PATCH Endpoint for Editing
+- [x] Extend `todoItemHandler` in `main.go` to handle `PATCH` method on `/api/todos/{id}`:
+  ```go
+  case http.MethodPatch:
+      var body struct {
+          Text string `json:"text"`
+      }
+      // decode, validate (trim, non-empty, max 500 chars)
+      // call todoStore.Update(id, text)
+      // return updated todo as JSON
+  ```
+- [x] Reuse same input validation as POST (trim, 500 char limit, non-empty)
+- [x] Return the updated `Todo` struct as JSON response
+- [x] Return 404 if ID not found, 400 if invalid body
+
+### Step 14.3 — Frontend: Inline Edit in Compact Widget
+- [x] Add `editingId` state variable to Alpine.js `x-data` (default: `null`)
+- [x] Add `editText` state variable to hold the text being edited
+- [x] Add `editTodo(id)` function: sets `editingId = id`, `editText = item.text`, focuses input
+- [x] Add `saveEdit(id)` function: optimistic update → PATCH API call → clear `editingId`
+- [x] Add `cancelEdit()` function: clears `editingId` and `editText`
+- [x] Add **edit button** (pencil icon) next to the delete button in each todo item row:
+- [x]   `opacity-0 group-hover:opacity-100` like the delete button
+- [x]   Pencil SVG icon, `text-gray-500 hover:text-amber-400`
+- [x]   Hidden when `editingId === item.id`
+- [x] Replace text `<span>` with `<input>` when `editingId === item.id`:
+- [x]   `x-model="editText"` with `@keydown.enter="saveEdit(item.id)"` and `@keydown.escape="cancelEdit()"`
+- [x]   `@blur="saveEdit(item.id)"` to save when clicking away
+- [x]   Same styling as the add input: `bg-white/5 border border-amber-400/50 rounded-lg px-2 py-1 text-xs`
+- [x]   Auto-focus via `$nextTick`
+
+### Step 14.4 — Frontend: Inline Edit in Full-Screen Modal
+- [x] Same edit logic as compact widget (shared Alpine.js state)
+- [x] Edit button in modal: larger pencil icon (`w-5 h-5`), always visible (not hover-only)
+- [x] Input field in modal: `text-base`, `bg-white/10 border border-amber-400/50 rounded-lg px-3 py-2`
+- [x] Date metadata row ("Added ...", "Done ...") stays visible below the input during editing
+- [x] Save/cancel behavior identical to compact widget
+
+### Step 14.5 — Update Documentation
+- [x] Update `documentation/docs.md` — Todo store section: document `Update()` method
+- [x] Update `documentation/docs.md` — HTTP handlers: document PATCH endpoint
+- [x] Update `documentation/changelogs.md` — New version entry
+- [x] Update `documentation/to-do.md` — Phase 14 marked complete
+
+### UX Design
+
+**Edit Flow:**
+1. User clicks pencil icon → text becomes an editable input field (amber border)
+2. User types new text → press Enter or click away to save
+3. Optimistic update: text changes instantly in UI
+4. PATCH `/api/todos/{id}` syncs to server in background
+5. On API failure: revert text, log error to console
+6. Press Escape to cancel edit (revert to original text)
+
+**Visual States:**
+
+| State | Compact Widget | Modal |
+|-------|---------------|-------|
+| Normal | text + hover buttons (edit/delete) | text + visible buttons (edit/delete) |
+| Editing | input field (amber border) replaces text | input field (amber border) replaces text |
+| Saving | input → text (instant, optimistic) | input → text (instant, optimistic) |
+
+### Files to Modify
+- `internal/todo/store.go` — Add `Update()` method
+- `main.go` — Add `PATCH` handler in `todoItemHandler`
+- `templates/todo.html` — Edit button, inline input, `editTodo()`/`saveEdit()`/`cancelEdit()` functions, `editingId`/`editText` state
+
+---
+
+## Phase 15: Font Size & Spacing Consistency Across Grid Widgets
+
+> **Problem:** The Bookmarks and Monitored Services combined card uses smaller font sizes and tighter spacing than the Docker Containers, Media Management, and Proxmox Server cards. This creates a visual inconsistency in the main grid — the left side (Bookmarks + Services) looks noticeably smaller than the right side (Docker) and the full-width sections above (Proxmox, Media).
+>
+> **Root cause:** Bookmarks and Services were designed earlier (Phase 4) with compact styling. Later phases (Phase 10) bumped font sizes across Proxmox, Docker, and Media but did not fully align the Bookmarks + Services card.
+
+### Current State Audit
+
+| Element | Proxmox / Docker / Media | Bookmarks | Services |
+|---------|-------------------------|-----------|----------|
+| Section title | `text-2xl` | `text-xl` ❌ | `text-xl` ❌ |
+| Section icon | `w-7 h-7` | `w-6 h-6` ❌ | `w-6 h-6` ❌ |
+| Title margin-bottom | `mb-5` | `mb-4` ❌ | `mb-4` ❌ |
+| Item name | `text-base font-semibold` | `text-xs font-medium` ❌ | `text-base font-semibold` ✅ |
+| Item gap/spacing | `space-y-3` | N/A (grid `gap-2`) | `space-y-2` ❌ |
+| Item padding | `p-3` | `p-2` | `p-2.5` ❌ |
+| Status/meta text | `text-xs` / `text-sm` | N/A | `text-xs` ✅ |
+
+### Step 15.1 — Bump Section Titles in Bookmarks + Services
+- [x] Bookmarks title: `text-xl` → `text-2xl`, icon `w-6 h-6` → `w-7 h-7`
+- [x] Services title: `text-xl` → `text-2xl`, icon `w-6 h-6` → `w-7 h-7`
+- [x] Both title margin-bottom: `mb-4` → `mb-5`
+- [x] File: `templates/status.html` (Bookmarks + Services combined card)
+
+### Step 15.2 — Bump Bookmark Link Name Font
+- [x] Bookmark link name: `text-xs font-medium` → `text-xs` (keep small since grid layout is compact, but ensure consistency)
+- [x] Consider: `text-xs` is appropriate for the 5-column grid layout since bookmark items are narrow. Keep `text-xs` but ensure the font weight and color match (use `font-medium text-gray-300` like now)
+- [x] File: `templates/bookmarks.html`
+
+### Step 15.3 — Align Services Item Spacing with Docker
+- [x] Services list `space-y-2` → `space-y-3` to match Docker container spacing
+- [x] Service item padding `p-2.5` → `p-3` to match Docker item padding
+- [x] File: `templates/status.html` (Services section)
+
+### Step 15.4 — Update Documentation
+- [x] Update `documentation/changelogs.md` — New version entry
+- [x] Update `documentation/to-do.md` — Phase 15 marked complete
+
+### Summary of Changes
+
+| What | From | To | File |
+|------|------|----|------|
+| Bookmarks title | `text-xl` | `text-2xl` | `templates/status.html` |
+| Bookmarks icon | `w-6 h-6` | `w-7 h-7` | `templates/status.html` |
+| Bookmarks title mb | `mb-4` | `mb-5` | `templates/status.html` |
+| Services title | `text-xl` | `text-2xl` | `templates/status.html` |
+| Services icon | `w-6 h-6` | `w-7 h-7` | `templates/status.html` |
+| Services title mb | `mb-4` | `mb-5` | `templates/status.html` |
+| Services item spacing | `space-y-2` | `space-y-3` | `templates/status.html` |
+| Services item padding | `p-2.5` | `p-3` | `templates/status.html` |
+
+### Files to Modify
+- `templates/status.html` — Section titles, icons, margins, services item spacing/padding
+- `documentation/changelogs.md` — Version entry
+
+---
+
+## Phase 16: Fix VM/LXC List Shuffling on Data Refresh (Bug Fix)
+
+> **Bug:** The VM and LXC lists in the Virtualization widget shuffle their order on every data refresh (every 5 seconds). Items jump to random positions, making it hard to track which VMs/LXCs are running or stopped.
+>
+> **Root cause:** `GetVirtualization()` in `internal/proxmox/client.go` calls `fetchResourceList()` which decodes the Proxmox API JSON response directly into a slice. The Proxmox API (`/nodes/{node}/qemu` and `/nodes/{node}/lxc`) does **not** guarantee a stable order — it returns resources in whatever order the internal hash map iterates. Since no sorting is applied, the slice order changes on every API call.
+>
+> **Impact:** The Go template in `templates/status.html` renders `{{ range .VirtInfo.VMs }}` and `{{ range .VirtInfo.LXCs }}` in whatever order the slice arrives. Combined with the HTMX merge-swap DOM diffing, this causes items to visually "jump" between positions on every 5-second poll.
+
+### Step 16.1 — Sort VMs and LXCs by VMID in `GetVirtualization()`
+- [x] Add `sort` import to `internal/proxmox/client.go`
+- [x] After populating `info.VMs`, sort by VMID ascending
+- [x] After populating `info.LXCs`, sort by VMID ascending
+- [x] VMID is an integer (e.g., 100, 101, 200) — sorting by it gives stable, deterministic order
+- [x] Mock data already in order — no changes needed
+
+### Step 16.2 — Update Documentation
+- [x] Update `documentation/changelogs.md` — New version entry (bug fix)
+- [x] Update `documentation/to-do.md` — Phase 16 marked complete
+
+### Technical Details
+- **File:** `internal/proxmox/client.go`
+- **Function:** `GetVirtualization()` — lines 202-235
+- **Change:** Add two `sort.Slice()` calls after the resource list loops, before returning `info`
+- **Risk:** None — sorting is O(n log n), negligible for typical VM/LXC counts (<50)
+- **No template changes needed** — the template already renders in slice order; fixing the slice order fixes the display
+
+### Files to Modify
+- `internal/proxmox/client.go` — Add `sort` import, sort VMs and LXCs by VMID
+- `documentation/changelogs.md` — Version entry
+
+---
+
+## Phase 17: Telegram Notifications for Todo Events
+
+> **Problem:** When a new to-do item is added or an existing one is marked as complete, there is no notification. The user has to check the dashboard manually to see changes. Telegram notifications already exist for service and container state transitions — this phase extends them to todo events.
+>
+> **Solution:** Send Telegram messages when todos are added or completed. Include the todo text, timestamp, and a summary of remaining unfinished tasks.
+
+### Step 17.1 — Add Todo Notification Config
+- [x] Add `NotifyTodoAdd` and `NotifyTodoComplete` fields to `TelegramConfig` in `internal/config/config.go`:
+  ```go
+  type TelegramConfig struct {
+      // ... existing fields ...
+      NotifyTodoAdd      bool   `yaml:"notify_todo_add"`     // notify when a new todo is added (default: true)
+      NotifyTodoComplete bool   `yaml:"notify_todo_complete"` // notify when a todo is completed (default: true)
+  }
+  ```
+- [x] Defaults documented in config-example.yaml (same pattern as notify_up/notify_down — Go bools can't distinguish unset from false)
+- [x] Update `config-example.yaml` with the new options (commented out)
+
+### Step 17.2 — Add `NotifyTodoChange()` Method to Notifier
+- [x] Add method to `internal/notifications/telegram.go`:
+  ```go
+  func buildRemainingList(remainingTasks []string) string {
+      if len(remainingTasks) == 0 {
+          return "🎉 All tasks completed!"
+      }
+      var b strings.Builder
+      fmt.Fprintf(&b, "📋 <b>Remaining (%d):</b>\n", len(remainingTasks))
+      for _, task := range remainingTasks {
+          fmt.Fprintf(&b, "  • %s\n", task)
+      }
+      return b.String()
+  }
+
+  func (n *Notifier) NotifyTodoAdded(text, createdAt string, remainingTasks []string) {
+      msg := fmt.Sprintf("📝 <b>New Todo Added</b>\n\nTask: %s\nAdded: %s\n\n%s",
+          text, createdAt, buildRemainingList(remainingTasks))
+      if err := n.SendMessage(msg); err != nil {
+          log.Printf("[TELEGRAM] Failed to send todo add notification: %v", err)
+      }
+  }
+
+  func (n *Notifier) NotifyTodoCompleted(text, doneAt string, remainingTasks []string) {
+      msg := fmt.Sprintf("✅ <b>Todo Completed</b>\n\nTask: %s\nDone: %s\n\n%s",
+          text, doneAt, buildRemainingList(remainingTasks))
+      if err := n.SendMessage(msg); err != nil {
+          log.Printf("[TELEGRAM] Failed to send todo complete notification: %v", err)
+      }
+  }
+  ```
+- [x] Add `"strings"` import to `internal/notifications/telegram.go` (used by `buildRemainingList()`)
+- [x] Reuse `isSilentHour()` from existing Notifier (respect silent hours)
+- [x] No cooldown needed for todo notifications (user-initiated actions, not automated polling)
+
+### Step 17.3 — Integrate Notifications in Todo HTTP Handlers
+- [x] In `main.go`, modify `todoAPIHandler` `POST` case — after successful `todoStore.Add()`, call `telegramNotifier.NotifyTodoAdd()` with the todo text, creation date, and list of remaining incomplete task names
+- [x] In `main.go`, modify `todoItemHandler` `PUT` case — after successful `todoStore.Toggle()`, check if the todo was just marked done (not un-done), and if so call `telegramNotifier.NotifyTodoComplete()` with the todo text, completion date, and list of remaining incomplete task names
+- [x] Guard both calls with `if telegramNotifier != nil` and the respective config flags (`NotifyTodoAdd`/`NotifyTodoComplete`)
+- [x] Use `todoStore.GetAll()` to build the list of remaining incomplete task names (filter where `Done == false`, extract `.Text` fields)
+
+### Step 17.4 — Update Documentation
+- [x] Update `documentation/docs.md` — Telegram section: document new todo notification options and behavior
+- [x] Update `config-example.yaml` — Add `notify_todo_add` and `notify_todo_complete` under telegram section
+- [x] Update `documentation/changelogs.md` — New version entry
+- [x] Update `documentation/to-do.md` — Phase 17 marked complete
+
+### Example Messages
+
+**Todo Added:**
+```
+📝 New Todo Added
+
+Task: Buy groceries
+Added: 2026-06-20 15:30
+
+📋 Remaining (3):
+  • Buy groceries
+  • Walk the dog
+  • Call plumber
+```
+
+**Todo Completed:**
+```
+✅ Todo Completed
+
+Task: Buy groceries
+Done: 2026-06-20 16:00
+
+📋 Remaining (2):
+  • Walk the dog
+  • Call plumber
+```
+
+### Files to Modify
+- `internal/config/config.go` — Add `NotifyTodoAdd`, `NotifyTodoComplete` fields to `TelegramConfig`
+- `internal/notifications/telegram.go` — Add `NotifyTodoAdd()`, `NotifyTodoComplete()` methods
+- `main.go` — Call notifier in POST (add) and PUT (toggle → done) handlers
+- `config-example.yaml` — New config options
+- `documentation/docs.md` — Document todo notifications
+- `documentation/changelogs.md` — New version entry
+- `documentation/to-do.md` — Phase 17 marked complete
+
+---
+
+## Phase 18: Telegram Bot — Add/List/Complete Todos via Chat
+
+> **Problem:** To add or complete a todo, the user must open the dashboard in a browser. No quick way to manage todos from a phone without navigating to the web UI.
+>
+> **Solution:** Poll Telegram `getUpdates`, parse commands (`/add`, `/done`, `/list`), and reply with results — all via the existing bot token, no new dependencies.
+
+### Step 18.1 — Telegram Bot Poller
+- [ ] Create `internal/notifications/telegram_bot.go` with `BotPoller` struct
+- [ ] Background goroutine polls `getUpdates` every 3s with `offset` tracking (avoid reprocessing)
+- [ ] On startup: initial blocking poll to clear stale updates
+- [ ] Respect silent hours (suppress non-command activity)
+
+### Step 18.2 — Command Parser & Handlers
+- [ ] Parse message text for commands:
+  - `/add Buy groceries` — adds a new todo, replies with confirmation + remaining list
+  - `/done 3` or `/done Buy groceries` — marks todo as done (by ID or text match), replies with confirmation + remaining list
+  - `/list` — replies with current incomplete todos (or "🎉 All done!")
+  - `/help` — replies with available commands
+- [ ] Ambiguous `/done` matches: if multiple todos match the text, reply with numbered list asking user to pick by ID
+
+### Step 18.3 — Wire into main.go
+- [ ] Start `go botPoller.Start(todoStore)` when Telegram is enabled
+- [ ] Pass `todoStore` reference (thread-safe, no locks needed beyond existing)
+
+### Step 18.4 — Update Documentation
+- [ ] Update `documentation/docs.md` with bot commands reference
+- [ ] Update `config-example.yaml` with `bot_enabled` flag (default: false)
+- [ ] Update `documentation/changelogs.md`
+- [ ] Update `documentation/to-do.md` — Phase 18 marked complete
+
+### Files to Modify
+- `internal/notifications/telegram_bot.go` — New file: BotPoller, command handlers
+- `main.go` — Start bot goroutine
+- `documentation/docs.md`, `documentation/changelogs.md`, `config-example.yaml`
+
+---
+
 ## Backlog / Future Improvements
 
 ### B.1 — Fix CSP to Allow Google Fonts
@@ -742,6 +1145,30 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 12.1 | `internal/history/store.go`, `go.mod` — SQLite time-series storage |
 | 12.2 | `templates/graphs.html`, `main.go` — chart endpoints, uPlot/sparklines |
 | 12.3 | `documentation/docs.md`, `config-example.yaml` |
+| 13.1 | `main.go` — `pollProxmox()` goroutine, cached Proxmox state |
+| 13.2 | `main.go` — `pollDocker()` goroutine, cached container list |
+| 13.3 | `main.go` — refactor `statusHandler` to cache-only reads |
+| 13.4 | `main.go` — initial blocking poll at startup |
+| 13.5 | `documentation/docs.md`, `documentation/changelogs.md` |
+| 14.1 | `internal/todo/store.go` — `Update()` method |
+| 14.2 | `main.go` — PATCH handler in `todoItemHandler` |
+| 14.3 | `templates/todo.html` — compact widget inline edit |
+| 14.4 | `templates/todo.html` — modal inline edit |
+| 14.5 | `documentation/docs.md`, `documentation/changelogs.md` |
+| 15.1 | `templates/status.html` — Bookmarks + Services title/icon/mb bump |
+| 15.2 | `templates/bookmarks.html` — bookmark link name font review |
+| 15.3 | `templates/status.html` — Services item spacing/padding alignment |
+| 15.4 | `documentation/changelogs.md` |
+| 16.1 | `internal/proxmox/client.go` — sort VMs/LXCs by VMID |
+| 16.2 | `documentation/changelogs.md` |
+| 17.1 | `internal/config/config.go`, `config-example.yaml` — NotifyTodoAdd/Complete config |
+| 17.2 | `internal/notifications/telegram.go` — NotifyTodoAdd(), NotifyTodoComplete() |
+| 17.3 | `main.go` — call notifier in todo handlers |
+| 17.4 | `documentation/docs.md`, `documentation/changelogs.md` |
+| 18.1 | `internal/notifications/telegram_bot.go` — BotPoller struct + goroutine |
+| 18.2 | `internal/notifications/telegram_bot.go` — command parser (/add, /done, /list, /help) |
+| 18.3 | `main.go` — start bot goroutine |
+| 18.4 | `documentation/docs.md`, `documentation/changelogs.md`, `config-example.yaml` |
 
 ---
 
@@ -761,9 +1188,20 @@ Step-by-step implementation plan to transform dhiarhome into a comprehensive hom
 | 10. UI & Theme Toggle | 4 | 4 | 0 | **Complete** |
 | 11. Telegram Notifications | 3 | 3 | 0 | **Complete** |
 | 12. Historical Graphs | 3 | 0 | 3 | **Pending** |
+| 13. Background Polling | 5 | 5 | 0 | **Complete** |
+| 14. To-Do Edit | 5 | 5 | 0 | **Complete** |
+| 15. Font Consistency | 4 | 4 | 0 | **Complete** |
+| 16. VM/LXC Sort Fix | 2 | 2 | 0 | **Complete** |
+| 17. Todo Telegram Notifications | 4 | 4 | 0 | **Complete** |
+| 18. Telegram Bot (Todo via Chat) | 4 | 0 | 4 | **Pending** |
 | B. Backlog | 2 | 0 | 2 | **Pending** |
-| **Total** | **60** | **44** | **16** |
+| **Total** | **84** | **64** | **20** |
 
+> **v1.5.3:** Phase 17 complete — todo Telegram notifications (add/complete events with remaining task list, respects silent hours, no cooldown).
+> **v1.5.2:** Phase 16 complete — VM/LXC list sorting fix (stable order by VMID).
+> **v1.5.1:** Phase 15 complete — Bookmarks and Services section titles bumped to `text-2xl` with larger icons, Services item spacing/padding aligned with Docker.
+> **v1.5.0:** Phase 14 complete — inline todo editing with pencil icon, PATCH endpoint, optimistic updates with API fallback.
+> **v1.4.5:** Phase 13 complete — background Proxmox and Docker polling, instant statusHandler response (<5ms), initial blocking polls at startup, architecture documented.
 > **v1.4.4:** GitHub button in header, glassmorphism footer section, security headers middleware (CSP, X-Frame-Options, etc.), SSRF protection for favicon fetcher, JSON injection fix.
 > **v1.4.3:** Command-line flags `--config` and `--addr` for custom config path and listen address.
 > **v1.4.2:** Security hardening — binary stripping (14MB → 9.6MB), config.yaml permissions restricted.

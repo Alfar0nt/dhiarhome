@@ -124,6 +124,14 @@ var (
 
 	transitionBuffer []TransitionEvent
 	transitionMu     sync.Mutex
+
+	// Phase 13: Background polling cache
+	cachedPxStatus proxmox.NodeStatus
+	cachedVirtInfo proxmox.VirtualizationInfo
+	pxStatusMu     sync.RWMutex
+
+	cachedContainers []docker.Container
+	containersMu     sync.RWMutex
 )
 
 // ── Security: middleware ───────────────────────────────────────────────────────
@@ -244,6 +252,8 @@ func main() {
 			appConfig.Notifications.Telegram.MessageThreadID,
 			appConfig.Notifications.Telegram.NotifyUp,
 			appConfig.Notifications.Telegram.NotifyDown,
+			appConfig.Notifications.Telegram.NotifyTodoAdd,
+			appConfig.Notifications.Telegram.NotifyTodoComplete,
 			appConfig.Notifications.Telegram.Cooldown,
 			appConfig.Notifications.Telegram.SilentHours,
 			appConfig.Notifications.Telegram.Mock,
@@ -296,7 +306,15 @@ func main() {
 	// Parse index.html as a template for dynamic appearance injection
 	indexTmpl = template.Must(template.New("index.html").ParseFiles("static/index.html"))
 
-	// Background poller for services
+	// Initial blocking polls (Option A: warm cache before serving requests)
+	log.Println("Running initial Proxmox poll...")
+	doPollProxmox()
+	log.Println("Running initial Docker poll...")
+	doPollDocker()
+
+	// Background pollers
+	go pollProxmox()
+	go pollDocker()
 	go pollServices()
 
 	// Background poller for media services
@@ -418,6 +436,88 @@ func pollServices() {
 	for range ticker.C {
 		doPoll()
 	}
+}
+
+func pollProxmox() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	// Initial poll
+	doPollProxmox()
+
+	for range ticker.C {
+		doPollProxmox()
+	}
+}
+
+func doPollProxmox() {
+	status, err := pxClient.GetNodeStatus()
+	if err != nil {
+		log.Printf("Proxmox API Error (background): %v", err)
+		return
+	}
+
+	// Merge extra disks from config
+	mergeExtraDisks(&status, appConfig.Proxmox.ExtraDisks)
+
+	virtInfo, err := pxClient.GetVirtualization()
+	if err != nil {
+		log.Printf("Proxmox Virtualization Error (background): %v", err)
+	}
+
+	pxStatusMu.Lock()
+	cachedPxStatus = status
+	cachedVirtInfo = virtInfo
+	pxStatusMu.Unlock()
+}
+
+func pollDocker() {
+	ticker := time.NewTicker(5 * time.Second)
+	defer ticker.Stop()
+
+	// Initial poll
+	doPollDocker()
+
+	for range ticker.C {
+		doPollDocker()
+	}
+}
+
+func doPollDocker() {
+	containers, err := dkClient.GetContainers()
+	if err != nil {
+		log.Printf("Docker API Error (background): %v", err)
+		if appConfig.Proxmox.Mock {
+			containers = []docker.Container{
+				{Names: []string{"/nginx"}, State: "running", Status: "Up 2 days"},
+				{Names: []string{"/pihole"}, State: "exited", Status: "Exited (0) 5 hours ago"},
+				{Names: []string{"/portainer"}, State: "running", Status: "Up 14 days"},
+				{Names: []string{"/plex"}, State: "running", Status: "Up 7 days"},
+				{Names: []string{"/nextcloud"}, State: "running", Status: "Up 3 days"},
+			}
+		} else {
+			return
+		}
+	}
+
+	// Filter containers if specified in config
+	if len(appConfig.Docker.MonitorContainers) > 0 {
+		var filtered []docker.Container
+		for _, c := range containers {
+			for _, allowed := range appConfig.Docker.MonitorContainers {
+				for _, name := range c.Names {
+					if name == "/"+allowed || name == allowed {
+						filtered = append(filtered, c)
+					}
+				}
+			}
+		}
+		containers = filtered
+	}
+
+	containersMu.Lock()
+	cachedContainers = containers
+	containersMu.Unlock()
 }
 
 // pollContainers periodically fetches Docker containers and detects state transitions.
@@ -616,45 +716,16 @@ func backgroundServeHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func statusHandler(w http.ResponseWriter, _ *http.Request) {
-	// Fetch Proxmox status
-	pxStatus, err := pxClient.GetNodeStatus()
-	if err != nil {
-		log.Printf("Proxmox API Error: %v", err)
-	}
+	// Read Proxmox status from background cache
+	pxStatusMu.RLock()
+	pxStatus := cachedPxStatus
+	virtInfo := cachedVirtInfo
+	pxStatusMu.RUnlock()
 
-	// Merge extra disks from config into Proxmox disks
-	mergeExtraDisks(&pxStatus, appConfig.Proxmox.ExtraDisks)
-
-	// Fetch Docker containers
-	containers, err := dkClient.GetContainers()
-	if err != nil {
-		log.Printf("Docker API Error: %v", err)
-		// Fake containers for mock UI testing if docker socket fails
-		if appConfig.Proxmox.Mock {
-			containers = []docker.Container{
-				{Names: []string{"/nginx"}, State: "running", Status: "Up 2 days"},
-				{Names: []string{"/pihole"}, State: "exited", Status: "Exited (0) 5 hours ago"},
-				{Names: []string{"/portainer"}, State: "running", Status: "Up 14 days"},
-				{Names: []string{"/plex"}, State: "running", Status: "Up 7 days"},
-				{Names: []string{"/nextcloud"}, State: "running", Status: "Up 3 days"},
-			}
-		}
-	} else {
-		// Filter containers if specified in config
-		if len(appConfig.Docker.MonitorContainers) > 0 {
-			var filtered []docker.Container
-			for _, c := range containers {
-				for _, allowed := range appConfig.Docker.MonitorContainers {
-					for _, name := range c.Names {
-						if name == "/"+allowed || name == allowed {
-							filtered = append(filtered, c)
-						}
-					}
-				}
-			}
-			containers = filtered
-		}
-	}
+	// Read Docker containers from background cache
+	containersMu.RLock()
+	containers := cachedContainers
+	containersMu.RUnlock()
 
 	// Get latest services from cache
 	var latestServices []cache.ServiceState
@@ -680,12 +751,6 @@ func statusHandler(w http.ResponseWriter, _ *http.Request) {
 	var todos []todo.Todo
 	if todoStore != nil {
 		todos = todoStore.GetAll()
-	}
-
-	// Fetch virtualization info (VMs and LXCs)
-	virtInfo, err := pxClient.GetVirtualization()
-	if err != nil {
-		log.Printf("Proxmox Virtualization Error: %v", err)
 	}
 
 	// Get media service stats
@@ -822,6 +887,16 @@ func todoAPIHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		t := todoStore.Add(text)
+		if telegramNotifier != nil && appConfig.Notifications.Telegram.NotifyTodoAdd {
+			todos := todoStore.GetAll()
+			var remaining []string
+			for _, todo := range todos {
+				if !todo.Done {
+					remaining = append(remaining, todo.Text)
+				}
+			}
+			go telegramNotifier.NotifyTodoAdded(t.Text, t.CreatedAt, remaining)
+		}
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusCreated)
 		json.NewEncoder(w).Encode(t)
@@ -851,10 +926,44 @@ func todoItemHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	switch r.Method {
+	case http.MethodPatch:
+		var body struct {
+			Text string `json:"text"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || strings.TrimSpace(body.Text) == "" {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+		text := strings.TrimSpace(body.Text)
+		if len(text) > 500 {
+			http.Error(w, "Text too long (max 500 characters)", http.StatusBadRequest)
+			return
+		}
+		if ok := todoStore.Update(id, text); !ok {
+			http.Error(w, "Todo not found", http.StatusNotFound)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(todoStore.GetByID(id))
+
 	case http.MethodPut:
+		before := todoStore.GetByID(id)
 		if ok := todoStore.Toggle(id); !ok {
 			http.Error(w, "Todo not found", http.StatusNotFound)
 			return
+		}
+		if telegramNotifier != nil && appConfig.Notifications.Telegram.NotifyTodoComplete {
+			after := todoStore.GetByID(id)
+			if after != nil && after.Done && (before == nil || !before.Done) {
+				todos := todoStore.GetAll()
+				var remaining []string
+				for _, todo := range todos {
+					if !todo.Done {
+						remaining = append(remaining, todo.Text)
+					}
+				}
+				go telegramNotifier.NotifyTodoCompleted(after.Text, after.DoneAt, remaining)
+			}
 		}
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(map[string]bool{"ok": true})

@@ -4,6 +4,141 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## [1.5.3] - 2026-06-20 - Phase 17: Todo Telegram Notifications
+
+### Added
+- **Todo Add Telegram notification** — When a new to-do item is created, a Telegram message is sent with the task text, creation timestamp, and a bulleted list of all remaining incomplete tasks. Controlled by `notify_todo_add: true` in config.
+- **Todo Complete Telegram notification** — When a to-do item is toggled to done, a Telegram message is sent with the task text, completion timestamp, and a bulleted list of remaining incomplete tasks. Controlled by `notify_todo_complete: true` in config.
+- **Silent hours respected** — Todo notifications are suppressed during configured silent hours (same as service/container alerts).
+- **No cooldown** — Todo notifications fire immediately (user-initiated actions, not automated polling).
+
+### Files Modified
+- `internal/config/config.go` — Added `NotifyTodoAdd`, `NotifyTodoComplete` fields to `TelegramConfig`
+- `internal/notifications/telegram.go` — Added `NotifyTodoAdd()`, `NotifyTodoComplete()`, `buildRemainingList()` methods
+- `main.go` — Passed new config flags, wired notifier calls in POST (add) and PUT (toggle → done) todo handlers
+- `config-example.yaml` — Added `notify_todo_add`, `notify_todo_complete` config options
+- `documentation/docs.md` — Documented todo notification options
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 17 marked complete
+
+### Example Messages
+**Todo Added:**
+```
+📝 New Todo Added
+
+Task: Buy groceries
+Added: 2026-06-20 15:30
+
+📋 Remaining (3):
+  • Buy groceries
+  • Walk the dog
+  • Call plumber
+```
+
+**Todo Completed:**
+```
+✅ Todo Completed
+
+Task: Buy groceries
+Done: 2026-06-20 16:00
+
+📋 Remaining (2):
+  • Walk the dog
+  • Call plumber
+```
+
+---
+
+## [1.5.2] - 2026-06-20 - Phase 16: Fix VM/LXC List Shuffling
+
+### Fixed
+- **VM and LXC list shuffling on data refresh** — VM and LXC lists in the Virtualization widget no longer jump to random positions on every 5-second poll. Root cause: Proxmox API does not guarantee stable ordering. Fixed by sorting VMs and LXCs by VMID ascending after fetching.
+- **File:** `internal/proxmox/client.go` — Added `"sort"` import, `sort.Slice()` calls after populating VMs and LXCs in `GetVirtualization()`. Sorting uses VMID (integer) ascending for stable, deterministic order. O(n log n) — negligible overhead for typical counts (<50 items).
+
+### Files Modified
+- `internal/proxmox/client.go` — Sort VMs and LXCs by VMID
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 16 marked complete
+
+---
+
+## [1.5.1] - 2026-06-20 - Phase 15: Font Size & Spacing Consistency
+
+### Changed
+- **Bookmarks section title**: `text-xl` → `text-2xl`, icon `w-6 h-6` → `w-7 h-7`, `mb-4` → `mb-5` — matches Proxmox/Docker/Media section heading size
+- **Services section title**: `text-xl` → `text-2xl`, icon `w-6 h-6` → `w-7 h-7`, `mb-4` → `mb-5` — matches Proxmox/Docker/Media section heading size
+- **Services item spacing**: `space-y-2` → `space-y-3` — matches Docker container spacing
+- **Services item padding**: `p-2.5` → `p-3` — matches Docker item padding
+
+### Summary of Changes
+| What | From | To | File |
+|------|------|----|------|
+| Bookmarks title | `text-xl` | `text-2xl` | `templates/status.html` |
+| Bookmarks icon | `w-6 h-6` | `w-7 h-7` | `templates/status.html` |
+| Bookmarks title mb | `mb-4` | `mb-5` | `templates/status.html` |
+| Services title | `text-xl` | `text-2xl` | `templates/status.html` |
+| Services icon | `w-6 h-6` | `w-7 h-7` | `templates/status.html` |
+| Services title mb | `mb-4` | `mb-5` | `templates/status.html` |
+| Services item spacing | `space-y-2` | `space-y-3` | `templates/status.html` |
+| Services item padding | `p-2.5` | `p-3` | `templates/status.html` |
+
+### Files Modified
+- `templates/status.html` — Section titles, icons, margins, services item spacing/padding
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 15 marked complete
+
+---
+
+## [1.5.0] - 2026-06-20 - Phase 14: To-Do Edit Functionality
+
+### Added
+- **Inline todo editing** — Pencil icon button on each todo item switches text display to an editable input field:
+  - Compact widget: pencil appears on hover (like delete), hidden during editing
+  - Full-screen modal: pencil always visible, larger input field
+  - Enter to save, Escape to cancel, click away to save
+  - Optimistic update: text changes instantly in UI, PATCH syncs to server in background
+  - On API failure: reverts to original text, logs error to console
+- **`Update(id, newText)` method** (`internal/todo/store.go`) — Thread-safe text update with JSON persistence
+- **`GetByID(id)` method** (`internal/todo/store.go`) — Returns a single todo item by ID (used by PATCH response)
+- **`PATCH /api/todos/{id}` endpoint** — Validates input (trim, non-empty, max 500 chars), returns updated Todo as JSON. Returns 404 if ID not found, 400 if invalid body.
+
+### Files Modified
+- `internal/todo/store.go` — Added `Update()` and `GetByID()` methods
+- `main.go` — Added `PATCH` case in `todoItemHandler` with input validation
+- `templates/todo.html` — `editingId`/`editText` state, `editTodo()`/`saveEdit()`/`cancelEdit()` functions, pencil icon buttons, inline input fields in both compact and modal views
+- `documentation/docs.md` — Todo store section updated with `Update()` and `GetByID()`, HTTP handlers section documents PATCH endpoint
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 14 marked complete
+
+---
+
+## [1.4.5] - 2026-06-20 - Phase 13: Background Polling & Instant Widget Rendering
+
+### Added
+- **Background Proxmox poller** (`pollProxmox()`): Fetches node status and virtualization info every 5 seconds in a background goroutine. Results stored in `cachedPxStatus`/`cachedVirtInfo` under `pxStatusMu` RWMutex. On API error, keeps previous cached values (stale > no data).
+- **Background Docker poller** (`pollDocker()`): Fetches container list every 5 seconds in a background goroutine. Applies name filters from config. Results stored in `cachedContainers` under `containersMu` RWMutex. Falls back to mock containers on error when `proxmox.mock: true`.
+- **Initial blocking polls** (Option A): Runs `doPollProxmox()` and `doPollDocker()` synchronously at startup before the HTTP server starts. Cache is warm by the time the first HTMX request arrives.
+
+### Changed
+- **`statusHandler` refactored**: All direct Proxmox API calls (`GetNodeStatus`, `GetVirtualization`) and Docker API calls (`GetContainers`) removed from the HTTP request path. Handler now reads exclusively from the background cache — response time reduced from 500ms–15s to <5ms.
+- **`mergeExtraDisks()` moved**: Now called inside `doPollProxmox()` instead of `statusHandler`, ensuring extra disks are merged fresh on every background poll cycle.
+
+### Performance Impact
+| Metric | Before | After |
+|--------|--------|-------|
+| `/status` response time | 500ms–15s (depends on APIs) | <5ms (cache read only) |
+| First widget render | 1–15s after page load | Instant (cache pre-warmed at startup) |
+| Stale data risk | None (always fresh) | Up to 5s stale (acceptable for dashboard) |
+| API failure UX | Blank/broken page | Shows last known good data |
+
+### Files Modified
+- `main.go` — Added `pollProxmox()`, `doPollProxmox()`, `pollDocker()`, `doPollDocker()`, cached state vars (`cachedPxStatus`, `cachedVirtInfo`, `pxStatusMu`, `cachedContainers`, `containersMu`), refactored `statusHandler`, initial blocking polls at startup
+- `documentation/docs.md` — Architecture section updated with background pollers, data flow notes
+- `documentation/changelogs.md` — This entry
+- `documentation/to-do.md` — Phase 13 marked complete
+
+---
+
 ## [1.4.4] - 2026-06-20 - GitHub Button, Footer & Security Hardening
 
 ### Added

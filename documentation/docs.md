@@ -87,6 +87,7 @@ Home servers typically have limited resources (CPU/RAM). Many existing dashboard
 - **Todo modal light mode** — Overlay switches from `bg-gray-900/95` to light `rgba(226, 232, 240, 0.95)`; modal content backgrounds, borders, text, and buttons adapt to light theme
 - **Bigger widget text** — All primary metric values increased from `text-sm` to `text-base`, section titles from `text-lg`/`text-xl` to `text-xl`/`text-2xl`, labels from `text-[10px]`/`text-[11px]` to `text-xs`
 - **Metric label CSS** — `.metric-label` font-size increased from `0.6875rem` to `0.75rem`
+- **Bookmarks & Services alignment** — Section titles bumped to `text-2xl` with `w-7 h-7` icons and `mb-5` spacing to match Proxmox/Docker/Media section headings; Services item spacing/padding (`space-y-3`/`p-3`) aligned with Docker cards
 - **GitHub button** — GitHub icon button in the page header (top-right, before theme toggle) linking to the dhiarhome repository with glassmorphism styling
 - **Footer** — Glassmorphism footer below the dashboard content with tech stack credits ("Built with dhiarhome · Go · HTMX · Alpine.js"), "Star on GitHub" link with icon, and "About the author" link. Responsive `max-w-lg sm:max-w-2xl` container
 
@@ -193,18 +194,23 @@ dhiarhome/
 1. **Configuration Loading**
    - Application starts and loads `config.yaml`
    - Initializes Proxmox client, Docker client, and history cache
+   - Runs initial blocking Proxmox and Docker polls to warm the cache before accepting requests
 
 2. **Background Polling**
-   - Goroutine polls configured services every 10 seconds
+   - Proxmox poller (5s interval): fetches node status, virtualization info, merges extra disks
+   - Docker poller (5s interval): fetches container list, applies name filters
+   - Service monitor polls configured services every 10 seconds
    - Stores results in thread-safe linked list cache (max 100 entries)
    - Network monitor goroutine samples `/proc/net/dev` at configurable interval (default 3s)
+   - Media services poll every 30 seconds (Sonarr/Radarr/Overseerr stats)
+   - All results are stored in thread-safe shared state (`sync.RWMutex`)
 
 3. **HTTP Requests**
    - User accesses `http://localhost:8080/`
    - `index.html` rendered as Go template with appearance config injected
    - HTMX auto-refresh polls `/status` endpoint every 5s
-   - Server fetches fresh data from Proxmox API and Docker socket
-   - Renders `status.html` template with current metrics
+   - Server reads cached data from background pollers — no direct API calls
+   - Renders `status.html` template with current metrics in <5ms
    - Returns HTML fragment to browser
    - `/background` serves local background image file (if configured)
    - `/api/background` returns JSON with background config
@@ -232,7 +238,7 @@ dhiarhome/
   - Deduplicates by mountpoint against Proxmox API-reported disks
   - `ReadDiskUsage()` function uses `statfs` to read block-level disk stats
   - `ParseSize()` in config package converts human-readable size strings to bytes (supports B, KB, MB, GB, TB, KiB, MiB, GiB, TiB)
-- **Virtualization monitoring**: `GetVirtualization()` fetches QEMU VM and LXC container lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc`. Returns `VirtualizationInfo` with running/total counts and individual resource lists (`VMs []ResourceInfo`, `LXCs []ResourceInfo`) including VMID, name, and status (running/stopped). Mock mode returns 3 VMs and 7 LXCs with mixed states.
+- **Virtualization monitoring**: `GetVirtualization()` fetches QEMU VM and LXC container lists from `/nodes/{node}/qemu` and `/nodes/{node}/lxc`. Returns `VirtualizationInfo` with running/total counts and individual resource lists (`VMs []ResourceInfo`, `LXCs []ResourceInfo`) including VMID, name, and status (running/stopped). VMs and LXCs are sorted by VMID ascending for stable display order (prevents shuffling on every poll). Mock mode returns 3 VMs and 7 LXCs with mixed states.
 - **API enrichment**: Parses swap usage (total/used/free), load average (1m/5m/15m from `loadavg` array), PVE version (`pveversion`), and kernel version (`kversion`) directly from the `/nodes/{node}/status` response — no extra API calls needed.
 - Uses `json.Number` for load average parsing since Proxmox returns these as string-encoded floats.
 - Supports self-signed certificates (TLS skip verify)
@@ -294,11 +300,13 @@ dhiarhome/
 #### To-Do Store (`internal/todo`)
 - Thread-safe CRUD store with JSON file persistence
 - `NewStore(filePath)` loads existing data, auto-increments IDs
-- `GetAll()`, `Add(text)`, `Toggle(id)`, `Delete(id)` with `sync.RWMutex`
+- `GetAll()`, `GetByID(id)`, `Add(text)`, `Update(id, text)`, `Toggle(id)`, `Delete(id)` with `sync.RWMutex`
+- `Update()` modifies the text of an existing item (trims whitespace, 500 char limit enforced by handlers)
 - `Toggle()` records `done_at` timestamp (RFC3339) when completing, clears when uncompleting
 - Saves to `data/todos.json` on every mutation
 - Interactive UI via Alpine.js (client-side `fetch()` to REST API)
 - Full-screen modal with date metadata display (created_at, done_at)
+- Inline edit: pencil icon replaces text with editable input; Enter to save, Escape to cancel
 
 #### Bookmarks Store (`internal/bookmarks`)
 - Configurable web bookmarks organized into named groups
@@ -319,19 +327,23 @@ dhiarhome/
 
 #### HTTP Handlers
 - `GET /` — Renders `index.html` as Go template (or serves static files)
-- `GET /status` — Returns HTMX HTML fragment with current metrics
+- `GET /status` — Returns HTMX HTML fragment with current metrics (reads from background cache, <5ms response)
 - `GET /background` — Serves local background image file with MIME type + 1h cache
 - `GET /api/background` — Returns JSON with background source, opacity, blur
 - `GET /api/todos` — Returns all todos as JSON array
 - `POST /api/todos` — Creates a new todo (body: `{"text": "..."}`)
+- `PATCH /api/todos/{id}` — Updates todo text (body: `{"text": "..."}`), returns updated Todo as JSON
 - `PUT /api/todos/{id}` — Toggles todo done state
 - `DELETE /api/todos/{id}` — Deletes a todo
 
 #### Background Goroutines
-- Service monitor polls every 10 seconds (response times, online/offline status)
-- Network monitor samples `/proc/net/dev` every 3 seconds (RX/TX rates)
-- Media services poll every 30 seconds (Sonarr/Radarr/Overseerr stats)
-- HTMX auto-refresh polls `/status` every 5 seconds (DOM diff preserves elements)
+- **Proxmox poller**: every 5 seconds — fetches node status, virtualization info (VMs/LXCs), merges extra disks. On error, keeps previous values (stale > no data)
+- **Docker poller**: every 5 seconds — fetches container list, applies name filters. Mock fallback on error when `proxmox.mock: true`
+- **Service monitor**: every 10 seconds — response times, online/offline status
+- **Network monitor**: samples `/proc/net/dev` every 3 seconds (RX/TX rates)
+- **Media services**: every 30 seconds (Sonarr/Radarr/Overseerr stats)
+- **Container state tracker**: every 15 seconds — detects container state transitions for Telegram alerts
+- HTMX auto-refresh polls `/status` every 5 seconds (reads from cache, no API calls in request path)
 
 ---
 
@@ -517,12 +529,14 @@ notifications:
     chat_id: "YOUR_CHAT_ID"       # Telegram chat/group/channel ID
     notify_up: true               # Notify when service/Docker recovers
     notify_down: true             # Notify when service/Docker goes down
+    notify_todo_add: true         # Notify when a new to-do item is added
+    notify_todo_complete: true    # Notify when a to-do item is marked complete
     cooldown: 5                   # Minutes between repeat alerts for the same service
     silent_hours: []              # Optional: suppress during certain hours (e.g., [23,0,1])
     mock: false                   # Dry-run: log to stdout instead of sending (for testing)
 ```
 
-> **Note:** The notifier tracks state transitions for both monitored services (HTTP checks) and Docker containers (running ↔ exited). Cooldown prevents alert fatigue by suppressing repeat notifications within the configured window. Silent hours are specified as a list of hours (0-23) in server local time.
+> **Note:** The notifier tracks state transitions for both monitored services (HTTP checks) and Docker containers (running ↔ exited). Cooldown prevents alert fatigue by suppressing repeat notifications within the configured window. Silent hours are specified as a list of hours (0-23) in server local time. Todo notifications (`notify_todo_add`, `notify_todo_complete`) fire immediately with no cooldown — they are user-initiated actions, not automated polling results. Each message includes the task name and the remaining incomplete tasks list.
 
 ### Toast Notifications (Web UI)
 

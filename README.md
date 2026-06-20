@@ -22,7 +22,7 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **Weather + time** — combined card with live clock, Open-Meteo weather
 - **System info** — hostname, OS, uptime, Go runtime stats
 - **Glassmorphism UI** — transparent cards, custom backgrounds, live indicator
-- **Telegram alerts** — service/Docker state transitions with cooldown, silent hours
+- **Telegram alerts** — service/Docker state transitions + todo add/complete events with cooldown, silent hours
 - **Auto-refreshing** — HTMX polling with DOM diff (no flicker)
 - **Mock mode** — test without real credentials
 - **Single binary** — ~15MB, zero database
@@ -44,7 +44,7 @@ A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker c
 - **DOM diff swap** — no backdrop flicker on refresh
 - **5s auto-refresh** — HTMX polling with merge-swap
 - **Toast notifications** — real-time popup alerts on service/Docker state changes
-- **Telegram notifications** — service/Docker up/down alerts with cooldown & silent hours
+- **Telegram notifications** — service/Docker up/down + todo add/complete alerts with cooldown & silent hours
 - **Security hardening** — CSP headers, SSRF protection, rate limiting, path traversal protection
 - **Responsive** — 2-col mobile, 4-col desktop widget grid
 - **YAML config** — no code changes needed
@@ -231,11 +231,13 @@ Home servers often have limited resources. Many existing dashboards are heavy an
 - ✅ Interactive to-do list (Alpine.js)
 - ✅ Media services (Sonarr, Radarr, Overseerr)
 - ✅ Custom bookmarks and web links
-- ✅ Telegram notifications (service/Docker alerts with cooldown & silent hours)
+- ✅ Telegram notifications (service/Docker + todo add/complete with cooldown & silent hours)
+- ✅ Todo Telegram notifications (add/complete events with remaining task list)
+- ⬜ Telegram bot (add/list/complete todos via chat)
 - ⬜ Additional service integrations (Plex, Portainer)
 - ⬜ Generic HTTP API widget
 
-> **v1.4.4 released** — all planned core features complete. Future work will focus on additional integrations.
+> **v1.5.3 released** — Telegram notifications now include to-do add/complete events. Future work will focus on Telegram bot integration and additional integrations.
 
 ---
 

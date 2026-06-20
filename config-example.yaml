@@ -157,6 +157,10 @@ notifications:
     notify_down: true
     # Minutes between repeat alerts for the same service/container (default: 5)
     cooldown: 5
+    # Notify when a new to-do item is added
+    notify_todo_add: true
+    # Notify when a to-do item is marked complete
+    notify_todo_complete: true
     # Suppress notifications during certain hours (server local time, 0-23)
     # Example: silent_hours: [23, 0, 1] to silence from 23:00 to 01:59
     silent_hours: []

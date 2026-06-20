@@ -59,6 +59,20 @@ func (s *Store) save() {
 	os.WriteFile(s.filePath, data, 0644)
 }
 
+// GetByID returns a copy of a single to-do item by ID, or nil if not found.
+func (s *Store) GetByID(id int64) *Todo {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for i := range s.todos {
+		if s.todos[i].ID == id {
+			t := s.todos[i]
+			return &t
+		}
+	}
+	return nil
+}
+
 // GetAll returns a copy of all to-do items.
 func (s *Store) GetAll() []Todo {
 	s.mu.RLock()
@@ -83,6 +97,21 @@ func (s *Store) Add(text string) Todo {
 	s.todos = append(s.todos, t)
 	s.save()
 	return t
+}
+
+// Update modifies the text of an existing to-do item.
+func (s *Store) Update(id int64, newText string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for i := range s.todos {
+		if s.todos[i].ID == id {
+			s.todos[i].Text = newText
+			s.save()
+			return true
+		}
+	}
+	return false
 }
 
 // Toggle flips the done state of a to-do item.

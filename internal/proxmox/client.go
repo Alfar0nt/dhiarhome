@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 	"syscall"
@@ -221,6 +222,11 @@ func (c *Client) GetVirtualization() (VirtualizationInfo, error) {
 		}
 	}
 
+	// Sort VMs and LXCs by VMID for stable ordering
+	sort.Slice(info.VMs, func(i, j int) bool {
+		return info.VMs[i].VMID < info.VMs[j].VMID
+	})
+
 	// Fetch LXC containers
 	lxcEndpoint := fmt.Sprintf("%s/nodes/%s/lxc", c.url, url.PathEscape(c.nodeName))
 	lxcs, err := c.fetchResourceList(lxcEndpoint)
@@ -235,6 +241,11 @@ func (c *Client) GetVirtualization() (VirtualizationInfo, error) {
 			}
 		}
 	}
+
+	// Sort LXCs by VMID for stable ordering
+	sort.Slice(info.LXCs, func(i, j int) bool {
+		return info.LXCs[i].VMID < info.LXCs[j].VMID
+	})
 
 	return info, nil
 }
