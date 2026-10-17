@@ -99,7 +99,7 @@ go build -o dhiarhome main.go
 ./dhiarhome --config myconfig.yaml --addr :9090
 ```
 
-For detailed deployment instructions, see [documentation/deployment.md](documentation/deployment.md).
+For detailed deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ---
 
@@ -150,13 +150,15 @@ Set `mock: true` in the Proxmox section to see fake bouncing data for UI testing
 
 ## Documentation
 
-Full documentation is available in the `/documentation` folder:
+Documentation lives in `.ai/` (project docs) and `docs/` (changelogs & deployment):
 
-- **[docs.md](documentation/docs.md)** - Complete project documentation, architecture, and technical details
-- **[deployment.md](documentation/deployment.md)** - Deployment guides (Docker, bare metal, systemd, reverse proxy)
-- **[to-do.md](documentation/to-do.md)** - Feature implementation roadmap
-- **[prompt-history.md](documentation/prompt-history.md)** - Development conversation log
-- **[changelogs.md](documentation/changelogs.md)** - Version history and changes
+- **[.ai/PRD.md](.ai/PRD.md)** - Product requirements
+- **[.ai/TRD.md](.ai/TRD.md)** - Technical reference (architecture, config, API)
+- **[.ai/APP-FLOW.md](.ai/APP-FLOW.md)** - Runtime flows (startup, pollers, requests)
+- **[.ai/DESIGN.md](.ai/DESIGN.md)** - UI/UX design system
+- **[.ai/IMPLEMENTATION-PLAN.md](.ai/IMPLEMENTATION-PLAN.md)** - Roadmap & task status
+- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment guides (Docker, bare metal, systemd, reverse proxy)
+- **[docs/CHANGELOGS.md](docs/CHANGELOGS.md)** - Version history and changes
 
 ---
 
@@ -189,7 +191,8 @@ dhiarhome/
 │   ├── todo.html              # To-do widget (Alpine.js)
 │   ├── network.html           # Network card
 │   └── widgets/               # Widget rendering
-└── documentation/             # Docs
+├── .ai/                       # Project docs (PRD, TRD, APP-FLOW, DESIGN, IMPLEMENTATION-PLAN)
+└── docs/                      # DEPLOYMENT.md, CHANGELOGS.md
 ```
 
 ---
@@ -208,7 +211,7 @@ dhiarhome/
 - Test URLs from your server: `curl -I https://example.com`
 - Check firewall rules and network connectivity
 
-For more troubleshooting, see [documentation/deployment.md](documentation/deployment.md#troubleshooting).
+For more troubleshooting, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#troubleshooting).
 
 ---
 
