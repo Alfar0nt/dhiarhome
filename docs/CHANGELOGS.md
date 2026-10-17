@@ -2,6 +2,20 @@
 
 > Compressed from former `documentation/changelogs.md` (dropped per-version "Files Modified" lists and verbose internals). Newest first. See [`../.ai/IMPLEMENTATION-PLAN.md`](../.ai/IMPLEMENTATION-PLAN.md) for roadmap.
 
+## Demo build — `demo-home` branch (static showcase)
+
+- **Pure static demo** of dhiarhome for Cloudflare Pages. No backend, no database, no `fetch`/XHR — every metric is generated in the browser and updates every few seconds. Deploys as-is (root `index.html`), no build step required at deploy time.
+- **Client-side mock engine** (`assets/app.js`, Alpine.js + vanilla JS) simulates all data: Proxmox (CPU/RAM/swap/load/disk/VM-LXC with live status flips), Docker up/down, web services online/offline with response times, media counters, network RX/TX, weather, live clock, and system info.
+- **Demo extras:** toast notifications on state transitions, a rolling Activity feed, periodic random events, and a persistent DEMO banner. Interactive to-do is in-memory (resets on reload).
+- **Removed the Go backend** (`main.go`, `internal/`, `templates/`, `static/`, `go.mod`, `go.sum`, `Dockerfile`, `config-example.yaml`) — this branch is demo-only.
+- **Performance pass (split + precompiled):**
+  - Replaced Tailwind **Play CDN** (runtime JIT + `MutationObserver`, caused interaction jank) with a **precompiled, purged** `assets/tailwind.css`.
+  - Split into `index.html` (markup) + `assets/app.js` (logic) + `assets/tailwind.css`; **self-hosted Alpine** (`assets/alpine.min.js`); made the Inter font non-render-blocking.
+  - Replaced ~22 infinite `animate-ping` status dots with static dots (only the "Live" pill pulses); removed permanent `will-change`; added `content-visibility:auto` to the Activity card; timers now pause while the tab is hidden.
+  - Added `package.json` + `tailwind.config.js` (`npm run build:css`) to regenerate the stylesheet.
+  - **Lighthouse (desktop, via Brave): 98 → 100**, FCP 0.9s → 0.3s, LCP 0.9s → 0.5s, transfer 270KB → 184KB, script 144KB → 61KB, render-blocking resources eliminated.
+- Real project remains on `main` / `develop` branches.
+
 ## Version History Summary
 
 | Version | Date | Description |

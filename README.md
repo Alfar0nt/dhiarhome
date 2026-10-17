@@ -1,257 +1,111 @@
-# dhiarhome
+# dhiarhome — Live Demo
 
-A lightweight, self-hosted homelab monitoring dashboard for Proxmox VE, Docker containers, web services, media services (Sonarr/Radarr/Overseerr), and network interfaces. Built with Go, HTMX, Alpine.js, and Tailwind CSS.
+A **fully static, self-contained demo** of [dhiarhome](https://github.com/Alfar0nt/dhiarhome) — an ultra-lightweight, self-hosted homelab monitoring dashboard.
+
+This branch (`demo-home`) is a **showcase-only build** designed to be hosted on **Cloudflare Pages**. There is **no backend, no database, and no API calls** — every metric is generated in the browser by a small client-side mock engine and changes every few seconds so the dashboard looks "live".
 
 | Dark Mode | Light Mode |
 |-----------|-----------|
 | ![Dark Mode](screenshots/dark.png) | ![Light Mode](screenshots/light.png) |
 
----
-
-## What is dhiarhome?
-
-**dhiarhome** is an ultra-lightweight web dashboard for homelab servers. Real-time visibility into:
-
-- **Proxmox VE** — CPU, RAM, multi-disk usage, CPU model/core/thread info
-- **Docker containers** — status and state
-- **Web services** — uptime with response times
-- **Media services** — Sonarr/Radarr/Overseerr stats with WebUI links
-- **Bookmarks** — custom links with auto-fetched favicons
-- **Network interfaces** — RX/TX speeds per interface
-- **Interactive to-do list** — add, toggle, delete (persisted to JSON)
-- **Weather + time** — combined card with live clock, Open-Meteo weather
-- **System info** — hostname, OS, uptime, Go runtime stats
-- **Glassmorphism UI** — transparent cards, custom backgrounds, live indicator
-- **Telegram alerts** — service/Docker state transitions + todo add/complete events with cooldown, silent hours
-- **Auto-refreshing** — HTMX polling with DOM diff (no flicker)
-- **Mock mode** — test without real credentials
-- **Single binary** — ~15MB, zero database
+> ⚠️ **Demo notice:** all values are simulated. Links and actions (bookmarks, media WebUI, Telegram, etc.) are non-functional and exist only to illustrate the real product. The real dashboard runs a Go backend — see the `main` / `develop` branches.
 
 ---
 
-## Features
+## What's simulated
 
-- **Proxmox** — CPU model + cores/threads, RAM, multi-disk, VM/LXC, uptime
-- **Docker** — all containers with up/down status
-- **Web services** — health checks with response times
-- **Media services** — Sonarr/Radarr/Overseerr stats, clickable WebUI
-- **Network** — per-interface RX/TX speeds (via /proc/net/dev)
-- **Bookmarks** — custom links with auto-fetched favicons
-- **To-do list** — Alpine.js interactive, persisted to JSON
-- **Weather + time** — live clock, Open-Meteo forecast, timezone support
-- **System info** — hostname, OS, uptime, Go memory
-- **Glassmorphism UI** — blur cards, custom backgrounds, accent color, dark/light toggle
-- **DOM diff swap** — no backdrop flicker on refresh
-- **5s auto-refresh** — HTMX polling with merge-swap
-- **Toast notifications** — real-time popup alerts on service/Docker state changes
-- **Telegram notifications** — service/Docker up/down + todo add/complete alerts with cooldown & silent hours
-- **Security hardening** — CSP headers, SSRF protection, rate limiting, path traversal protection
-- **Responsive** — 2-col mobile, 4-col desktop widget grid
-- **YAML config** — no code changes needed
-- **Mock mode** — test everything without real servers
+- **Proxmox VE** — CPU, memory, swap, load average, multi-disk usage, PVE/kernel version, VM/LXC list with live status flips
+- **Docker** — container list with up/down transitions
+- **Web services** — online/offline transitions with fluctuating response times
+- **Media services** — Sonarr / Radarr / Overseerr counters that slowly grow
+- **Network** — per-interface RX/TX speeds with animated totals
+- **Utility widgets** — live clock, weather, system info (hostname, OS, uptime, Go memory)
+- **Bookmarks** — grid of links with icons
+- **Interactive to-do** — add / toggle / edit / delete (in-memory, resets on reload)
+- **Toast notifications** — pop up on state transitions (green = recovered, red = down)
+- **Activity feed** — rolling log of recent events
+- **Dark / light theme toggle** — persisted to `localStorage`
+
+All updates are driven client-side by Alpine.js + vanilla JS. No `fetch`/XHR to any server.
 
 ---
 
-## Tech Stack
+## Run locally
 
-- **Backend:** Go 1.26 (statically compiled, single binary)
-- **Frontend:** HTML5 + Tailwind CSS + HTMX 1.9.10 + Alpine.js 3.x
-- **Config:** YAML
-- **Deploy:** Docker multi-stage or bare metal
-
----
-
-## Quick Start
-
-### Option 1: Docker (Recommended)
+Any static file server works:
 
 ```bash
-# Clone the repository
-git clone https://github.com/Alfar0nt/dhiarhome.git
-cd dhiarhome
+# Python
+python3 -m http.server 8080
 
-# Create your config file
-cp config-example.yaml config.yaml
-nano config.yaml  # Edit with your settings
-
-# Build and run
-docker build -t dhiarhome .
-docker run -d \
-  -p 8080:8080 \
-  -v $(pwd)/config.yaml:/app/config.yaml \
-  -v /var/run/docker.sock:/var/run/docker.sock:ro \
-  dhiarhome
+# or Node
+npx serve .
 ```
 
-Open `http://localhost:8080` in your browser.
+Then open `http://localhost:8080`.
 
-### Option 2: Build from Source
+---
+
+## Deploy to Cloudflare Pages
+
+1. Push this branch to GitHub.
+2. In the Cloudflare dashboard → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**.
+3. Select the `dhiarhome` repository and the **`demo-home`** branch.
+4. Build settings:
+   - **Framework preset:** None
+   - **Build command:** *(leave empty)*
+   - **Build output directory:** `/` (repository root)
+5. Deploy. The root `index.html` is served as the site.
+
+> The demo is a single `index.html` plus `screenshots/` — no build step required.
+
+---
+
+## Project structure
+
+```
+dhiarhome/ (demo-home branch)
+├── index.html              # The demo app (markup + Alpine bindings)
+├── assets/
+│   ├── app.js              # Client-side mock data engine (demoApp)
+│   ├── alpine.min.js       # Self-hosted Alpine.js (no CDN)
+│   ├── input.css           # Tailwind directives + custom styles (source)
+│   └── tailwind.css        # Precompiled CSS (committed, built once)
+├── screenshots/            # Dark / light previews
+├── logo.png
+├── package.json            # tailwindcss devDep + build:css script
+├── tailwind.config.js      # content globs for class purging
+├── .ai/                    # Project docs (PRD, TRD, APP-FLOW, DESIGN, IMPLEMENTATION-PLAN)
+├── docs/                   # CHANGELOGS.md, DEPLOYMENT.md
+└── AGENTS.md
+```
+
+## Rebuilding the CSS
+
+The dashboard uses a **precompiled** Tailwind stylesheet (no Play CDN, better performance). If you add/remove utility classes in `index.html` or `assets/app.js`, regenerate `assets/tailwind.css`:
 
 ```bash
-# Install Go from https://go.dev/
-
-# Clone and build
-git clone https://github.com/Alfar0nt/dhiarhome.git
-cd dhiarhome
-cp config-example.yaml config.yaml
-go build -o dhiarhome main.go
-./dhiarhome               # uses config.yaml, :8080
-./dhiarhome --config myconfig.yaml --addr :9090
+npm install        # once
+npm run build:css  # recompile assets/tailwind.css
 ```
 
-For detailed deployment instructions, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+Commit the regenerated `assets/tailwind.css` so Cloudflare Pages needs no build step.
 
 ---
 
-## Configuration
+## The real project
 
-All customization happens in `config.yaml`—no code changes needed!
+The production dashboard is written in **Go** with **HTMX** + **Alpine.js** + **Tailwind CSS** and runs as a single ~14 MB binary (Docker or bare metal):
 
-### 1. Copy the example config
-```bash
-cp config-example.yaml config.yaml
-```
+- Real Proxmox VE API, Docker Engine API, Sonarr/Radarr/Overseerr, `/proc/net/dev` sampling
+- Background pollers + in-memory cache (sub-5 ms `/status` responses)
+- Telegram notifications with cooldown and silent hours
+- Security hardening (CSP, SSRF protection, rate limiting)
 
-### 2. Edit your settings
-
-**Add websites to monitor:**
-```yaml
-services:
-  - name: "My Website"
-    url: "https://example.com"
-  - name: "Nextcloud"
-    url: "https://nextcloud.example.com"
-```
-
-**Configure Proxmox monitoring:**
-```yaml
-proxmox:
-  url: "https://192.168.1.100:8006/api2/json"
-  node_name: "pve"
-  token_id: "root@pam!dashboard"
-  token_secret: "YOUR-SECRET-UUID"
-  mock: false  # Set to true for testing
-```
-
-**Filter Docker containers:**
-```yaml
-docker:
-  socket: "unix:///var/run/docker.sock"
-  monitor_containers:
-    - "nginx"
-    - "pihole"
-```
-
-### 3. Test without real data
-
-Set `mock: true` in the Proxmox section to see fake bouncing data for UI testing.
-
----
-
-## Documentation
-
-Documentation lives in `.ai/` (project docs) and `docs/` (changelogs & deployment):
-
-- **[.ai/PRD.md](.ai/PRD.md)** - Product requirements
-- **[.ai/TRD.md](.ai/TRD.md)** - Technical reference (architecture, config, API)
-- **[.ai/APP-FLOW.md](.ai/APP-FLOW.md)** - Runtime flows (startup, pollers, requests)
-- **[.ai/DESIGN.md](.ai/DESIGN.md)** - UI/UX design system
-- **[.ai/IMPLEMENTATION-PLAN.md](.ai/IMPLEMENTATION-PLAN.md)** - Roadmap & task status
-- **[docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Deployment guides (Docker, bare metal, systemd, reverse proxy)
-- **[docs/CHANGELOGS.md](docs/CHANGELOGS.md)** - Version history and changes
-
----
-
-## Project Structure
-
-```
-dhiarhome/
-├── main.go                    # App entry point
-├── config.yaml                # Your config (gitignored)
-├── config-example.yaml        # Template
-├── Dockerfile                 # Build
-├── internal/
-│   ├── bookmarks/             # Bookmark processing + favicon cache
-│   ├── cache/                 # Service state cache
-│   ├── config/                # YAML loader
-│   ├── docker/                # Docker API client
-│   ├── mediaservices/         # Sonarr/Radarr/Overseerr clients
-│   ├── monitor/               # HTTP health checker
-│   ├── network/               # /proc/net/dev monitor
-│   ├── notifications/         # Telegram notifier
-│   ├── proxmox/               # Proxmox API client
-│   ├── todo/                  # Persistent to-do store
-│   └── widgets/               # Weather, datetime, sysinfo, custom_text
-├── static/
-│   ├── index.html             # Dashboard page (Go template)
-│   └── backgrounds/           # Custom bg images
-├── templates/
-│   ├── status.html            # Status page
-│   ├── mediaservices.html     # Media services card
-│   ├── todo.html              # To-do widget (Alpine.js)
-│   ├── network.html           # Network card
-│   └── widgets/               # Widget rendering
-├── .ai/                       # Project docs (PRD, TRD, APP-FLOW, DESIGN, IMPLEMENTATION-PLAN)
-└── docs/                      # DEPLOYMENT.md, CHANGELOGS.md
-```
-
----
-
-## Common Issues
-
-**"No containers found"**
-- Check if Docker socket is mounted: `-v /var/run/docker.sock:/var/run/docker.sock:ro`
-- Verify container names in `monitor_containers` (or leave empty for all)
-
-**"Proxmox API Error"**
-- Verify API token ID and secret in `config.yaml`
-- Test API access: `curl -k -H "Authorization: PVEAPIToken=TOKEN_ID=SECRET" https://PROXMOX_IP:8006/api2/json/nodes/pve/status`
-
-**Services showing "Offline"**
-- Test URLs from your server: `curl -I https://example.com`
-- Check firewall rules and network connectivity
-
-For more troubleshooting, see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#troubleshooting).
-
----
-
-## Why This Project?
-
-Home servers often have limited resources. Many existing dashboards are heavy and require running databases or complex setups. dhiarhome provides:
-
-- **Zero database** - All data fetched in real-time
-- **Minimal resources** - ~10-20MB RAM, <1% CPU
-- **Simple deployment** - Single binary or Docker container
-- **Easy customization** - Edit YAML, not code
-
----
-
-## Roadmap
-
-- ✅ Background images, glassmorphism theme, accessibility
-- ✅ Weather, datetime, system info, custom text widgets
-- ✅ Network interface monitoring (RX/TX speeds)
-- ✅ Interactive to-do list (Alpine.js)
-- ✅ Media services (Sonarr, Radarr, Overseerr)
-- ✅ Custom bookmarks and web links
-- ✅ Telegram notifications (service/Docker + todo add/complete with cooldown & silent hours)
-- ✅ Todo Telegram notifications (add/complete events with remaining task list)
-- ⬜ Telegram bot (add/list/complete todos via chat)
-- ⬜ Additional service integrations (Plex, Portainer)
-- ⬜ Generic HTTP API widget
-
-> **v1.5.3 released** — Telegram notifications now include to-do add/complete events. Future work will focus on Telegram bot integration and additional integrations.
-
----
-
-## Contributing
-
-This is a personal learning project, but feel free to fork and customize for your own use. If you find bugs or have suggestions, open an issue!
+See the [`main`](https://github.com/Alfar0nt/dhiarhome/tree/main) or [`develop`](https://github.com/Alfar0nt/dhiarhome/tree/develop) branch.
 
 ---
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE) — see the [LICENSE](LICENSE) file for details.
-
-Copyright (c) 2026 Dhiar Harianto
+[MIT](LICENSE) — Copyright (c) 2026 Dhiar Harianto.
